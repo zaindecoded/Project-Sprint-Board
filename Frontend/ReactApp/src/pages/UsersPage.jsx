@@ -170,8 +170,8 @@ function UsersPage() {
             <label htmlFor="user-role">Role <span aria-hidden="true">*</span></label>
             <select id="user-role" name="role" value={form.role} onChange={changeField} required disabled={saving}>
               <option value="Admin">Admin</option>
-              <option value="Project Manager">Project Manager</option>
-              <option value="Team Member">Team Member</option>
+              <option value="ProjectManager">Project Manager</option>
+              <option value="TeamMember">Team Member</option>
             </select>
           </div>
           <div className="project-form-actions project-field-wide">
@@ -200,8 +200,8 @@ function UsersPage() {
                     <td data-label="Role">
                       <select aria-label={`Role for ${user.firstName} ${user.lastName}`} value={roles[user.id] ?? user.role} disabled={Boolean(userAction)} onChange={(event) => setRoles((current) => ({ ...current, [user.id]: event.target.value }))}>
                         <option value="Admin">Admin</option>
-                        <option value="Project Manager">Project Manager</option>
-                        <option value="Team Member">Team Member</option>
+                        <option value="ProjectManager">Project Manager</option>
+                        <option value="TeamMember">Team Member</option>
                       </select>
                     </td>
                     <td data-label="Actions">
