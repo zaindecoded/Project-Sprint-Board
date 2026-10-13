@@ -29,3 +29,7 @@ pnpm-debug.log*
 # OS files
 .DS_Store
 Thumbs.db
+backend.log
+frontend.log
+frontend-error.log
+backend-error.log
