@@ -28,6 +28,7 @@ public class DashboardService
         return new DashboardSummaryDto
         {
             TotalProjects = projects.Count,
+            CompletedProjects = projects.Count(x => string.Equals(x.Status, "Completed", StringComparison.OrdinalIgnoreCase)),
             ActiveProjects = projects.Count(x => x.IsActive && x.Status == "Active"),
             ActiveSprints = sprints.Count(x => x.IsActive && x.Status == "Active"),
             TotalTasks = tasks.Count,

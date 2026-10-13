@@ -50,9 +50,10 @@ function DashboardPage() {
   const completion = totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 0;
   const overview = [
     { label: 'Projects', value: count(summary?.totalProjects) },
+    { label: 'Completed projects', value: count(summary?.completedProjects) },
     { label: 'Active sprints', value: count(summary?.activeSprints) },
     { label: 'Tasks', value: totalTasks },
-    { label: 'Completed', value: completedTasks },
+    { label: 'Completed tasks', value: completedTasks },
     { label: 'Overdue', value: count(summary?.overdueTasks) },
     { label: 'Blocked', value: count(summary?.blockedTasks) }
   ];
