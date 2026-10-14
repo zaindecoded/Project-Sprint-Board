@@ -1,4 +1,5 @@
 using System.Text;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -66,6 +67,24 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtAudience,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
         ClockSkew = TimeSpan.FromMinutes(1)
+    };
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            var userIdValue = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(userIdValue, out var userId))
+            {
+                context.Fail("The token does not identify a valid user.");
+                return;
+            }
+
+            var dbContext = context.HttpContext.RequestServices.GetRequiredService<TaskSprintBoardDbContext>();
+            var userIsActive = await dbContext.Users.AsNoTracking()
+                .AnyAsync(user => user.Id == userId && user.IsActive && !user.IsDeleted);
+            if (!userIsActive)
+                context.Fail("This account is inactive or has been deleted.");
+        }
     };
 });
 
