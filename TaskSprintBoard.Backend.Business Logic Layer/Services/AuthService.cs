@@ -112,7 +112,8 @@ public class AuthService
         };
 
         var tokenHandler = new JwtSecurityTokenHandler();
-        var token = tokenHandler.CreateToken(tokenDescriptor);
+        var token = (JwtSecurityToken)tokenHandler.CreateToken(tokenDescriptor);
+        token.Payload.Remove(JwtRegisteredClaimNames.Iat);
         return tokenHandler.WriteToken(token);
     }
 

@@ -583,7 +583,7 @@ public class ServiceTests
         var user = await userRepo.AddAsync(new User { FirstName = "Eve", LastName = "Test", Email = "eve@example.com", UserName = "eve_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = "tester", IsDeleted = false, IsActive = true });
         await commentRepo.AddAsync(new Comment { TaskId = task.Id, UserId = user.Id, Message = "Looks good.", CreatedBy = "tester", IsDeleted = false, IsActive = true });
 
-        var (items, totalCount) = await service.SearchCommentsAsync(null, task.Id, null, 1, 10);
+        var (items, totalCount) = await service.SearchCommentsAsync(null, task.Id, null, null, 1, 10);
 
         Assert.Equal(1, totalCount);
         Assert.Single(items);
@@ -769,7 +769,7 @@ public class ServiceTests
         var comment = await commentRepo.AddAsync(new Comment { TaskId = task.Id, UserId = user.Id, Message = "Should be hidden", CreatedBy = "tester", IsDeleted = false, IsActive = true });
 
         await service.DeleteCommentAsync(comment.Id, "tester");
-        var (items, totalCount) = await service.SearchCommentsAsync(null, task.Id, null, 1, 10);
+        var (items, totalCount) = await service.SearchCommentsAsync(null, task.Id, null, null, 1, 10);
 
         Assert.Equal(0, totalCount);
         Assert.Empty(items);
