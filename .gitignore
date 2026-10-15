@@ -34,3 +34,4 @@ backend-error.log*
 .DS_Store
 Thumbs.db
 appsettings.Development.json
+appsettings.json
