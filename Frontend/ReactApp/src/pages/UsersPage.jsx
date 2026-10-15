@@ -128,9 +128,7 @@ function UsersPage() {
     <section className="projects-page">
       <div className="projects-heading">
         <div>
-          <p className="eyebrow">Administration</p>
-          <h1>Users</h1>
-          <p className="projects-subtitle">Create accounts and assign workspace roles.</p>
+          <h1>Administration</h1>
         </div>
       </div>
 
@@ -140,8 +138,7 @@ function UsersPage() {
       <section className="project-form-card" aria-labelledby="user-form-title">
         <div className="project-form-heading">
           <div>
-            <p className="eyebrow">New account</p>
-            <h2 id="user-form-title">Create user</h2>
+            <h2 id="user-form-title">New account</h2>
           </div>
         </div>
 

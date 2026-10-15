@@ -532,9 +532,7 @@ function CommentsPage() {
     <section className="projects-page comments-page">
       <div className="projects-heading">
         <div>
-          <p className="eyebrow">Workspace</p>
           <h1>Comments</h1>
-          <p className="projects-subtitle">{canManage ? 'Read and manage comments on your tasks.' : 'Read task comments and add your own.'}</p>
         </div>
         {!formOpen && (
           <button className="button button-primary" type="button" onClick={openCreateForm} disabled={!currentUser?.id}>

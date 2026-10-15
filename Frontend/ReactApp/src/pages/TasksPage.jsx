@@ -245,7 +245,7 @@ function TaskRiskPanel({ task, onClose, onEvaluatingChange }) {
         <button className="button button-secondary" type="button" onClick={onClose} disabled={evaluating}>Close risk</button>
       </div>
 
-      <p className="task-risk-advisory">This risk assessment is advisory and does not change the task status.</p>
+     
       <ErrorMessage>{error}</ErrorMessage>
 
       {!result ? (
@@ -280,8 +280,7 @@ function TaskRiskPanel({ task, onClose, onEvaluatingChange }) {
             {riskFactors.length ? (
               <ul>{riskFactors.map((factor, index) => <li key={`${factor}-${index}`}>{factor}</li>)}</ul>
             ) : <p>No risk factors were returned.</p>}
-            <h3>Explanation</h3>
-            <p>{result.explanation}</p>
+            
           </div>
           <button className="button button-secondary" type="button" onClick={handleEvaluate} disabled={evaluating}>
             {evaluating ? 'Evaluating risk...' : 'Evaluate again'}

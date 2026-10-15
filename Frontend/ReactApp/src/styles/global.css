@@ -1081,7 +1081,7 @@ h1 {
 
 .project-filter {
   display: grid;
-  min-width: min(100%, 220px);
+  min-width: min(100%, 20px);
   gap: 6px;
 }
 
@@ -1096,7 +1096,7 @@ h1 {
   padding: 9px 32px 9px 11px;
   border: 1px solid #d6dce7;
   border-radius: 8px;
-  color: #172033;
+  color: #1e411e;
   background: #fff;
 }
 
@@ -1524,11 +1524,11 @@ h1 {
 }
 
 .assignment-task-filter {
-  min-width: min(100%, 240px);
+  min-width: min(100%, 1000px);
 }
 
 .comment-task-filter {
-  min-width: min(100%, 240px);
+  min-width: min(100%, 1000px);
 }
 
 .comment-filter-error {

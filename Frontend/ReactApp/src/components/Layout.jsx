@@ -32,7 +32,7 @@ function Layout() {
         <div className="header-inner">
           <NavLink className="app-brand" to="/" onClick={() => setMenuOpen(false)}>
             <span className="brand-mark brand-mark-small" aria-hidden="true">TS</span>
-            <span>TaskSprintBoard</span>
+            <span>Task & Sprint Board</span>
           </NavLink>
 
           <button

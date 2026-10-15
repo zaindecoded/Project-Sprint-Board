@@ -25,7 +25,7 @@ public class AiRiskService
         var score = CalculateRiskScore(dto);
         var level = score switch
         {
-            >= 80 => "High",
+            >= 70 => "High",
             >= 50 => "Medium",
             _ => "Low"
         };
@@ -36,6 +36,8 @@ public class AiRiskService
         if (dto.DaysRemaining <= 3) riskFactors.Add("Due date approaching");
         if (dto.NumberOfStatusChanges > 2) riskFactors.Add("Multiple status changes");
         if (dto.EstimateHours > 20) riskFactors.Add("Large remaining workload");
+        if (dto.Priority is "High" or "Critical") riskFactors.Add($"{dto.Priority} priority");
+        if (dto.CurrentStatus == "Blocked") riskFactors.Add("Task is blocked");
 
         var explanation = string.Join("; ", riskFactors.Count > 0 ? riskFactors : ["Healthy delivery outlook"]);
 

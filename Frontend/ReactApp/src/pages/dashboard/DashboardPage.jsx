@@ -63,7 +63,6 @@ function DashboardPage() {
       <header className="dashboard-heading">
         <div>
           <h1>Dashboard</h1>
-          <p className="projects-subtitle">A quick view of project work and tasks that need attention.</p>
         </div>
       </header>
 
@@ -99,12 +98,10 @@ function DashboardPage() {
           <section className="dashboard-panel dashboard-attention-tasks-panel" aria-labelledby="attention-tasks-title">
             <div className="dashboard-panel-heading">
               <div>
-                <p className="dashboard-panel-eyebrow">Follow up</p>
                 <h2 id="attention-tasks-title">Tasks needing attention</h2>
               </div>
               {!attentionLoading && !attentionError && <span className="dashboard-total-pill">{attentionTasks.length}</span>}
             </div>
-            <p className="dashboard-attention-description">Open tasks marked critical or rated high risk.</p>
             {attentionLoading ? (
               <div className="dashboard-inline-state" role="status">Loading tasks…</div>
             ) : attentionError ? (
