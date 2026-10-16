@@ -1,5 +1,4 @@
 using TaskSprintBoard.Backend.BusinessLogic.DTOs;
-using TaskSprintBoard.Backend.BusinessLogic.Enums;
 using TaskSprintBoard.Backend.BusinessLogic.Validators;
 using TaskSprintBoard.Backend.Data.Entities;
 using TaskSprintBoard.Backend.Data.Repositories;

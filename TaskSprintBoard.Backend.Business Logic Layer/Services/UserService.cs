@@ -1,6 +1,5 @@
 using TaskSprintBoard.Backend.Data.Entities;
 using TaskSprintBoard.Backend.Data.Repositories;
-using System.Linq;
 
 namespace TaskSprintBoard.Backend.BusinessLogic.Services;
 

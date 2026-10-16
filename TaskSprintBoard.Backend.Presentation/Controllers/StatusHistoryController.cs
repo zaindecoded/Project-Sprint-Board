@@ -1,9 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using TaskSprintBoard.Backend.BusinessLogic.DTOs;
 using TaskSprintBoard.Backend.BusinessLogic.Services;
-using TaskSprintBoard.Backend.Data.Entities;
 
 namespace TaskSprintBoard.Backend.Presentation.Controllers;
 
