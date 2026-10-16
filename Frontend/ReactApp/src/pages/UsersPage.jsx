@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import ErrorMessage from '../components/ErrorMessage';
 import { getApiErrorMessage } from '../services/apiErrors';
-import { createUser, deleteUser, getUsers, updateUserRole } from '../services/userApi';
+import { createUser, deleteUser, getUsers } from '../services/userApi';
 
 const EMPTY_FORM = {
   firstName: '',
@@ -38,16 +38,14 @@ function UsersPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [users, setUsers] = useState([]);
-  const [roles, setRoles] = useState({});
   const [loadingUsers, setLoadingUsers] = useState(true);
-  const [userAction, setUserAction] = useState('');
+  const [deactivatingUserId, setDeactivatingUserId] = useState('');
 
   const loadUsers = useCallback(async () => {
     setLoadingUsers(true);
     try {
       const items = await getUsers();
       setUsers(Array.isArray(items) ? items : []);
-      setRoles(Object.fromEntries((Array.isArray(items) ? items : []).map((user) => [user.id, user.role])));
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'Unable to load users.'));
     } finally {
@@ -91,26 +89,9 @@ function UsersPage() {
     }
   }
 
-  async function saveRole(user) {
-    const role = roles[user.id];
-    if (!role || role === user.role) return;
-    setUserAction(user.id);
-    setError('');
-    setNotice('');
-    try {
-      await updateUserRole(user.id, role);
-      setNotice(`${user.firstName} ${user.lastName}'s role was updated.`);
-      await loadUsers();
-    } catch (requestError) {
-      setError(getValidationMessage(requestError));
-    } finally {
-      setUserAction('');
-    }
-  }
-
   async function removeUser(user) {
     if (!window.confirm(`Soft delete ${user.firstName} ${user.lastName}? They will no longer be able to sign in.`)) return;
-    setUserAction(user.id);
+    setDeactivatingUserId(user.id);
     setError('');
     setNotice('');
     try {
@@ -120,7 +101,7 @@ function UsersPage() {
     } catch (requestError) {
       setError(getValidationMessage(requestError));
     } finally {
-      setUserAction('');
+      setDeactivatingUserId('');
     }
   }
 
@@ -195,21 +176,12 @@ function UsersPage() {
                     <td data-label="Email">{user.email}</td>
                     <td data-label="Username">{user.userName}</td>
                     <td data-label="Role">
-                      <select aria-label={`Role for ${user.firstName} ${user.lastName}`} value={roles[user.id] ?? user.role} disabled={Boolean(userAction)} onChange={(event) => setRoles((current) => ({ ...current, [user.id]: event.target.value }))}>
-                        <option value="Admin">Admin</option>
-                        <option value="ProjectManager">Project Manager</option>
-                        <option value="TeamMember">Team Member</option>
-                      </select>
+                      {user.role === 'ProjectManager' ? 'Project Manager' : user.role === 'TeamMember' ? 'Team Member' : user.role}
                     </td>
                     <td data-label="Actions">
-                      <div className="project-form-actions">
-                        <button className="button button-secondary" type="button" onClick={() => saveRole(user)} disabled={Boolean(userAction) || roles[user.id] === user.role}>
-                          {userAction === user.id ? 'Saving…' : 'Save role'}
-                        </button>
-                        <button className="button button-danger" type="button" onClick={() => removeUser(user)} disabled={Boolean(userAction)}>
-                          Deactivate
-                        </button>
-                      </div>
+                      <button className="button button-danger" type="button" onClick={() => removeUser(user)} disabled={Boolean(deactivatingUserId)}>
+                        Deactivate
+                      </button>
                     </td>
                   </tr>
                 ))}
