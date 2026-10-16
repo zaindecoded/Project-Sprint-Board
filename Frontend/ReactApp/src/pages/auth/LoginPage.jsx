@@ -22,7 +22,8 @@ function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await login({ email: email.trim(), password });
+      const emailPrefix = email.trim().split('@')[0];
+      await login({ email: `${emailPrefix}@company.com`, password });
       navigate(location.state?.from?.pathname || '/', { replace: true });
     } catch (loginError) {
       setError(getApiErrorMessage(loginError, 'Unable to sign in. Please try again.'));
@@ -42,18 +43,22 @@ function LoginPage() {
         <ErrorMessage>{error}</ErrorMessage>
 
         <form className="login-form" onSubmit={handleSubmit}>
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="username"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@company.com"
-            required
-            disabled={loading}
-          />
+          <label htmlFor="email">Company email</label>
+          <div className="login-email-field">
+            <input
+              id="email"
+              name="email"
+              type="text"
+              autoComplete="username"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="yourname"
+              aria-describedby="email-domain"
+              required
+              disabled={loading}
+            />
+            <span id="email-domain" className="login-email-domain">@company.com</span>
+          </div>
 
           <label htmlFor="password">Password</label>
           <input
