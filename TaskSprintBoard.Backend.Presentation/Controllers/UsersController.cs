@@ -20,9 +20,12 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetActiveUsers()
+    public async Task<IActionResult> GetActiveUsers([FromQuery] bool includeInactive = false)
     {
-        var users = await _userService.GetActiveUsersAsync();
+        if (includeInactive && !User.IsInRole("Admin")) return Forbid();
+        var users = includeInactive
+            ? await _userService.GetAllUsersAsync()
+            : await _userService.GetActiveUsersAsync();
         return Ok(users.Select(user => new UserDto
         {
             Id = user.Id,
@@ -30,7 +33,9 @@ public class UsersController : ControllerBase
             LastName = user.LastName,
             Email = user.Email,
             UserName = user.UserName,
-            Role = user.Role
+            Role = user.Role,
+            RoleId = user.RoleId,
+            IsActive = user.IsActive && !user.IsDeleted
         }));
     }
 
@@ -51,7 +56,7 @@ public class UsersController : ControllerBase
             UserName = dto.UserName.Trim(),
             PasswordHash = dto.Password,
             Role = role.ToString(),
-            CreatedBy = User.Identity?.Name ?? "system"
+            CreatedBy = User.GetActorUserId()
         };
 
         try
@@ -64,7 +69,9 @@ public class UsersController : ControllerBase
                 LastName = createdUser.LastName,
                 Email = createdUser.Email,
                 UserName = createdUser.UserName,
-                Role = createdUser.Role
+                Role = createdUser.Role,
+                RoleId = createdUser.RoleId,
+                IsActive = createdUser.IsActive && !createdUser.IsDeleted
             });
         }
         catch (InvalidOperationException ex)
@@ -73,17 +80,17 @@ public class UsersController : ControllerBase
         }
     }
 
-    [HttpPatch("{id:guid}/role")]
+    [HttpPatch("{id:int}/role")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> UpdateRole(Guid id, [FromBody] UserRoleUpdateDto dto)
+    public async Task<IActionResult> UpdateRole(int id, [FromBody] UserRoleUpdateDto dto)
     {
         if (!Enum.TryParse<UserRole>(dto.Role, true, out var role) || !Enum.IsDefined(role))
             return BadRequest(new { success = false, message = "Role must be Admin, ProjectManager, or TeamMember." });
 
         try
         {
-            var user = await _userService.UpdateRoleAsync(id, role.ToString(), User.Identity?.Name ?? "system");
-            return Ok(new UserDto { Id = user.Id, FirstName = user.FirstName, LastName = user.LastName, Email = user.Email, UserName = user.UserName, Role = user.Role });
+            var user = await _userService.UpdateRoleAsync(id, role.ToString(), User.GetActorUserId());
+            return Ok(new UserDto { Id = user.Id, FirstName = user.FirstName, LastName = user.LastName, Email = user.Email, UserName = user.UserName, Role = user.Role, RoleId = user.RoleId, IsActive = user.IsActive && !user.IsDeleted });
         }
         catch (KeyNotFoundException ex)
         {
@@ -91,14 +98,33 @@ public class UsersController : ControllerBase
         }
     }
 
-    [HttpDelete("{id:guid}")]
+    [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete(int id)
     {
         try
         {
-            await _userService.DeleteUserAsync(id, User.Identity?.Name ?? "system");
+            await _userService.DeleteUserAsync(id, User.GetActorUserId());
             return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpPatch("{id:int}/activate")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Activate(int id)
+    {
+        try
+        {
+            var user = await _userService.ActivateUserAsync(id, User.GetActorUserId());
+            return Ok(new UserDto { Id = user.Id, FirstName = user.FirstName, LastName = user.LastName, Email = user.Email, UserName = user.UserName, Role = user.Role, RoleId = user.RoleId, IsActive = true });
         }
         catch (KeyNotFoundException ex)
         {

@@ -4,15 +4,15 @@ namespace TaskSprintBoard.Backend.BusinessLogic.Interfaces;
 
 public interface ITaskRepository
 {
-    Task<TaskItem?> GetByIdAsync(Guid id);
-    Task<TaskItem?> GetByIdWithDetailsAsync(Guid id);
+    Task<TaskItem?> GetByIdAsync(int id);
+    Task<TaskItem?> GetByIdWithDetailsAsync(int id);
     Task<IEnumerable<TaskItem>> SearchAsync(
         string? search,
         string? status,
         string? priority,
-        Guid? projectId,
-        Guid? sprintId,
-        Guid? userId,
+        int? projectId,
+        int? sprintId,
+        int? userId,
         DateTime? dueDate,
         bool? blocked,
         int skip,
@@ -21,12 +21,12 @@ public interface ITaskRepository
         string? search,
         string? status,
         string? priority,
-        Guid? projectId,
-        Guid? sprintId,
-        Guid? userId,
+        int? projectId,
+        int? sprintId,
+        int? userId,
         DateTime? dueDate,
         bool? blocked);
     Task<TaskItem> AddAsync(TaskItem task);
     Task UpdateAsync(TaskItem task);
-    Task DeleteAsync(Guid id);
+    Task DeleteAsync(int id);
 }

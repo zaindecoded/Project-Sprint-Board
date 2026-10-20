@@ -6,7 +6,7 @@ namespace TaskSprintBoard.Backend.Presentation.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin,ProjectManager")]
+[Authorize(Roles = "Admin,ProjectManager,TeamMember")]
 public class DashboardController : ControllerBase
 {
     private readonly DashboardService _dashboardService;
@@ -19,14 +19,16 @@ public class DashboardController : ControllerBase
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary()
     {
-        var summary = await _dashboardService.GetSummaryAsync();
+        var userId = User.IsInRole("TeamMember") ? User.GetActorUserId() : (int?)null;
+        var summary = await _dashboardService.GetSummaryAsync(userId);
         return Ok(summary);
     }
 
     [HttpGet("attention-tasks")]
     public async Task<IActionResult> GetAttentionTasks()
     {
-        var tasks = await _dashboardService.GetAttentionTasksAsync();
+        var userId = User.IsInRole("TeamMember") ? User.GetActorUserId() : (int?)null;
+        var tasks = await _dashboardService.GetAttentionTasksAsync(userId);
         return Ok(new { items = tasks });
     }
 }

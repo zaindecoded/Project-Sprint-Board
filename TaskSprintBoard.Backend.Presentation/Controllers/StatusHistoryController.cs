@@ -24,7 +24,7 @@ public class StatusHistoryController : ControllerBase
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
-        [FromQuery] Guid? taskId = null,
+        [FromQuery] int? taskId = null,
         [FromQuery] string? oldStatus = null,
         [FromQuery] string? newStatus = null)
     {
@@ -35,9 +35,9 @@ public class StatusHistoryController : ControllerBase
         return Ok(new { items = responseItems, page, pageSize, totalCount, totalPages });
     }
 
-    [HttpGet("{id:guid}")]
+    [HttpGet("{id:int}")]
     [Authorize(Roles = "Admin,ProjectManager")]
-    public async Task<IActionResult> GetById(Guid id)
+    public async Task<IActionResult> GetById(int id)
     {
         var item = await _statusHistoryService.GetByIdAsync(id);
         if (item == null)
@@ -46,12 +46,12 @@ public class StatusHistoryController : ControllerBase
         return Ok(StatusHistoryService.MapToResponse(item));
     }
 
-    [HttpGet("/api/tasks/{taskId:guid}/status-history")]
-    public async Task<IActionResult> GetByTaskId(Guid taskId)
+    [HttpGet("/api/tasks/{taskId:int}/status-history")]
+    public async Task<IActionResult> GetByTaskId(int taskId)
     {
         if (User.IsInRole("TeamMember"))
         {
-            if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId)
+            if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId)
                 || !await _taskService.IsAssignedToUserAsync(taskId, currentUserId))
                 return NotFound();
         }

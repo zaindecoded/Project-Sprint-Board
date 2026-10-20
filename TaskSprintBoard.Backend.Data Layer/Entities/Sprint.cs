@@ -2,7 +2,7 @@ namespace TaskSprintBoard.Backend.Data.Entities;
 
 public class Sprint : BaseEntity
 {
-    public Guid ProjectId { get; set; }
+    public int ProjectId { get; set; }
     public Project Project { get; set; } = null!;
 
     public string Name { get; set; } = string.Empty;
@@ -11,5 +11,5 @@ public class Sprint : BaseEntity
     public string Goal { get; set; } = string.Empty;
     public string Status { get; set; } = "Planned";
 
-    public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
+    public ICollection<TaskItem> Tasks { get; set; } = [];
 }

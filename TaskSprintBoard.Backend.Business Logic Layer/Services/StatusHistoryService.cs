@@ -16,9 +16,9 @@ public class StatusHistoryService
         _taskRepository = taskRepository;
     }
 
-    public async Task<StatusHistory?> CreateStatusHistoryAsync(Guid taskId, string oldStatus, string newStatus, string changedBy, string? reason = null)
+    public async Task<StatusHistory?> CreateStatusHistoryAsync(int taskId, string oldStatus, string newStatus, string changedBy, string? reason = null)
     {
-        if (taskId == Guid.Empty)
+        if (taskId == 0)
             throw new InvalidOperationException("TaskId is required.");
 
         var task = await _taskRepository.GetByIdAsync(taskId) ?? throw new KeyNotFoundException("Task not found.");
@@ -40,6 +40,8 @@ public class StatusHistoryService
         normalizedOldStatus = Enum.Parse<TaskSprintBoard.Backend.BusinessLogic.Enums.TaskStatus>(normalizedOldStatus, true).ToString();
         normalizedNewStatus = Enum.Parse<TaskSprintBoard.Backend.BusinessLogic.Enums.TaskStatus>(normalizedNewStatus, true).ToString();
 
+        var hasActorId = int.TryParse(changedBy, out var actorId);
+
         if (string.Equals(normalizedOldStatus, normalizedNewStatus, StringComparison.OrdinalIgnoreCase))
             return null;
 
@@ -51,7 +53,7 @@ public class StatusHistoryService
             ChangedBy = changedBy,
             ChangedAt = DateTime.UtcNow,
             Reason = reason,
-            CreatedBy = changedBy,
+            CreatedBy = hasActorId ? actorId : null,
             IsActive = true,
             IsDeleted = false
         };
@@ -59,7 +61,7 @@ public class StatusHistoryService
         return await _statusHistoryRepository.AddAsync(statusHistory);
     }
 
-    public async Task<StatusHistory?> GetByIdAsync(Guid id)
+    public async Task<StatusHistory?> GetByIdAsync(int id)
     {
         var item = await _statusHistoryRepository.GetByIdWithDetailsAsync(id);
         if (item != null && item.IsDeleted)
@@ -69,7 +71,7 @@ public class StatusHistoryService
     }
 
     public async Task<(IEnumerable<StatusHistory> Items, int TotalCount)> SearchAsync(
-        Guid? taskId,
+        int? taskId,
         string? oldStatus,
         string? newStatus,
         int page,
@@ -85,7 +87,7 @@ public class StatusHistoryService
         return (items, totalCount);
     }
 
-    public async Task<IEnumerable<StatusHistory>> GetByTaskIdAsync(Guid taskId)
+    public async Task<IEnumerable<StatusHistory>> GetByTaskIdAsync(int taskId)
     {
         return await _statusHistoryRepository.GetByTaskIdAsync(taskId);
     }

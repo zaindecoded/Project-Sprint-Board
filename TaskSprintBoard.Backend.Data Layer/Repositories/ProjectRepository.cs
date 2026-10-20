@@ -27,14 +27,14 @@ public class ProjectRepository : GenericRepository<Project>
         return await query.OrderBy(x => x.Name).Skip(skip).Take(take).ToListAsync();
     }
 
-    public Task<bool> HasSprintEndingAfterAsync(Guid projectId, DateTime endDate)
+    public Task<bool> HasSprintEndingAfterAsync(int projectId, DateTime endDate)
     {
         return Context.Sprints.AsNoTracking().AnyAsync(sprint => sprint.ProjectId == projectId
             && !sprint.IsDeleted
             && sprint.EndDate.Date > endDate.Date);
     }
 
-    public async Task UpdateAndCompleteWorkAsync(Project project, string updatedBy)
+    public async Task UpdateAndCompleteWorkAsync(Project project, int updatedBy)
     {
         var now = DateTime.UtcNow;
         Context.Projects.Update(project);
@@ -73,7 +73,7 @@ public class ProjectRepository : GenericRepository<Project>
                 TaskId = task.Id,
                 OldStatus = oldStatus,
                 NewStatus = "Done",
-                ChangedBy = updatedBy,
+                ChangedBy = updatedBy.ToString(),
                 ChangedAt = now,
                 Reason = "Automatically completed because the parent project was marked completed.",
                 CreatedAt = now,

@@ -24,13 +24,13 @@ public class AssignmentsController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
         [FromQuery] string search = "",
-        [FromQuery] Guid? taskId = null,
-        [FromQuery] Guid? userId = null,
+        [FromQuery] int? taskId = null,
+        [FromQuery] int? userId = null,
         [FromQuery] bool? isActive = null)
     {
         if (User.IsInRole("TeamMember"))
         {
-            if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId))
+            if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId))
                 return Forbid();
 
             userId = currentUserId;
@@ -44,15 +44,15 @@ public class AssignmentsController : ControllerBase
         return Ok(new { items = responseItems, page, pageSize, totalCount, totalPages });
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetById(Guid id)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
     {
         var assignment = await _assignmentService.GetByIdAsync(id);
         if (assignment == null)
             return NotFound();
 
         if (User.IsInRole("TeamMember")
-            && (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId)
+            && (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId)
                 || assignment.UserId != currentUserId
                 || !assignment.IsActive))
             return NotFound();
@@ -66,7 +66,7 @@ public class AssignmentsController : ControllerBase
     {
         try
         {
-            var assignment = await _assignmentService.CreateAssignmentAsync(dto, User.Identity?.Name ?? "system");
+            var assignment = await _assignmentService.CreateAssignmentAsync(dto, User.GetActorUserId());
             return StatusCode(201, MapToDto(assignment));
         }
         catch (KeyNotFoundException ex)
@@ -79,13 +79,13 @@ public class AssignmentsController : ControllerBase
         }
     }
 
-    [HttpPut("{id:guid}")]
+    [HttpPut("{id:int}")]
     [Authorize(Roles = "Admin,ProjectManager")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] AssignmentUpdateDto dto)
+    public async Task<IActionResult> Update(int id, [FromBody] AssignmentUpdateDto dto)
     {
         try
         {
-            var assignment = await _assignmentService.UpdateAssignmentAsync(id, dto, User.Identity?.Name ?? "system");
+            var assignment = await _assignmentService.UpdateAssignmentAsync(id, dto, User.GetActorUserId());
             return Ok(MapToDto(assignment));
         }
         catch (KeyNotFoundException ex)
@@ -98,13 +98,13 @@ public class AssignmentsController : ControllerBase
         }
     }
 
-    [HttpDelete("{id:guid}")]
+    [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin,ProjectManager")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete(int id)
     {
         try
         {
-            await _assignmentService.DeleteAssignmentAsync(id, User.Identity?.Name ?? "system");
+            await _assignmentService.DeleteAssignmentAsync(id, User.GetActorUserId());
             return NoContent();
         }
         catch (KeyNotFoundException ex)

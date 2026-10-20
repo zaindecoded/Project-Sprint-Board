@@ -27,7 +27,7 @@ public class GenericRepository<T> where T : BaseEntity
         return await query.ToListAsync();
     }
 
-    public virtual async Task<T?> GetByIdAsync(Guid id)
+    public virtual async Task<T?> GetByIdAsync(int id)
     {
         return await DbSet.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
     }
@@ -55,7 +55,7 @@ public class GenericRepository<T> where T : BaseEntity
         await Context.SaveChangesAsync();
     }
 
-    public virtual async Task DeleteAsync(Guid id)
+    public virtual async Task DeleteAsync(int id)
     {
         var entity = await DbSet.FirstOrDefaultAsync(x => x.Id == id);
         if (entity != null)

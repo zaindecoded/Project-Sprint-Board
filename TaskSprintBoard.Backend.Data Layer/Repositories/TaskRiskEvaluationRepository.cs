@@ -10,7 +10,7 @@ public class TaskRiskEvaluationRepository : GenericRepository<TaskRiskEvaluation
     {
     }
 
-    public async Task<IEnumerable<TaskRiskEvaluation>> GetByTaskIdAsync(Guid taskId)
+    public async Task<IEnumerable<TaskRiskEvaluation>> GetByTaskIdAsync(int taskId)
     {
         return await DbSet.AsNoTracking().Where(x => x.TaskId == taskId && !x.IsDeleted).OrderByDescending(x => x.EvaluatedAt).ToListAsync();
     }

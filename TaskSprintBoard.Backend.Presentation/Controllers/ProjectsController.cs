@@ -38,8 +38,8 @@ public class ProjectsController : ControllerBase
         return Ok(new { items = dtos, page, pageSize, totalCount, totalPages });
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetById(Guid id)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
     {
         var project = await _projectService.GetByIdAsync(id);
         if (project == null) return NotFound();
@@ -65,7 +65,7 @@ public class ProjectsController : ControllerBase
     {
         try
         {
-            var project = await _projectService.CreateProjectAsync(dto.Name, dto.Description, dto.StartDate, dto.EndDate, dto.Status, User.Identity?.Name ?? "system");
+            var project = await _projectService.CreateProjectAsync(dto.Name, dto.Description, dto.StartDate, dto.EndDate, dto.Status, User.GetActorUserId());
             var result = new ProjectDto
             {
                 Id = project.Id,
@@ -85,13 +85,13 @@ public class ProjectsController : ControllerBase
         }
     }
 
-    [HttpPut("{id:guid}")]
+    [HttpPut("{id:int}")]
     [Authorize(Roles = "Admin,ProjectManager")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] ProjectUpdateDto dto)
+    public async Task<IActionResult> Update(int id, [FromBody] ProjectUpdateDto dto)
     {
         try
         {
-            var project = await _projectService.UpdateProjectAsync(id, dto.Name, dto.Description, dto.StartDate, dto.EndDate, dto.Status, User.Identity?.Name ?? "system");
+            var project = await _projectService.UpdateProjectAsync(id, dto.Name, dto.Description, dto.StartDate, dto.EndDate, dto.Status, User.GetActorUserId());
             var result = new ProjectDto
             {
                 Id = project.Id,
@@ -115,13 +115,13 @@ public class ProjectsController : ControllerBase
         }
     }
 
-    [HttpDelete("{id:guid}")]
+    [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin,ProjectManager")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete(int id)
     {
         try
         {
-            await _projectService.DeleteProjectAsync(id, User.Identity?.Name ?? "system");
+            await _projectService.DeleteProjectAsync(id, User.GetActorUserId());
             return NoContent();
         }
         catch (KeyNotFoundException)

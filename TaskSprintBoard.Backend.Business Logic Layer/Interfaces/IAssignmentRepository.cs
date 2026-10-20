@@ -4,7 +4,7 @@ namespace TaskSprintBoard.Backend.BusinessLogic.Interfaces;
 
 public interface IAssignmentRepository
 {
-    Task<IEnumerable<Assignment>> GetByTaskIdAsync(Guid taskId);
+    Task<IEnumerable<Assignment>> GetByTaskIdAsync(int taskId);
     Task<Assignment> AddAsync(Assignment assignment);
-    Task DeleteAsync(Guid id);
+    Task DeleteAsync(int id);
 }

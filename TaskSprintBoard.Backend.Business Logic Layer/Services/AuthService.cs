@@ -43,6 +43,7 @@ public class AuthService
             Name = $"{user.FirstName} {user.LastName}".Trim(),
             Email = user.Email,
             Role = user.Role,
+            RoleId = user.RoleId,
             ExpiresAt = expiresAt
         };
     }
@@ -55,6 +56,14 @@ public class AuthService
         var existingEmail = await _userRepository.GetByEmailAsync(user.Email);
         if (existingEmail != null)
             throw new InvalidOperationException("Email already exists.");
+
+        user.RoleId = user.Role switch
+        {
+            "Admin" => 1,
+            "ProjectManager" => 2,
+            "TeamMember" => 3,
+            _ => throw new InvalidOperationException("Role must be Admin, ProjectManager, or TeamMember.")
+        };
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
         user.CreatedAt = DateTime.UtcNow;
@@ -96,10 +105,12 @@ public class AuthService
 
         var claims = new List<Claim>
         {
-            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new(ClaimTypes.Name, user.UserName),
+            new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new("userId", user.Id.ToString()),
+            new("username", user.UserName),
             new(ClaimTypes.Email, user.Email),
-            new(ClaimTypes.Role, user.Role)
+            new(ClaimTypes.Role, user.Role),
+            new("roleId", user.RoleId.ToString())
         };
 
         var tokenDescriptor = new SecurityTokenDescriptor

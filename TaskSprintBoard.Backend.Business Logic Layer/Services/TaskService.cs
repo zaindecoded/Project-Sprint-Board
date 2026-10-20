@@ -18,12 +18,12 @@ public class TaskService
         _sprintRepository = sprintRepository;
     }
 
-    public async Task<TaskItem> CreateTaskAsync(TaskCreateDto dto, string createdBy)
+    public async Task<TaskItem> CreateTaskAsync(TaskCreateDto dto, int createdBy)
     {
         if (dto == null)
             throw new ArgumentNullException(nameof(dto));
 
-        if (dto.SprintId == Guid.Empty)
+        if (dto.SprintId == 0)
             throw new InvalidOperationException("SprintId is required.");
 
         var sprint = await _sprintRepository.GetByIdWithProjectAsync(dto.SprintId)
@@ -81,7 +81,7 @@ public class TaskService
         return task;
     }
 
-    public async Task<TaskItem> UpdateTaskAsync(Guid id, TaskUpdateDto dto, string updatedBy)
+    public async Task<TaskItem> UpdateTaskAsync(int id, TaskUpdateDto dto, int updatedBy)
     {
         if (dto == null)
             throw new ArgumentNullException(nameof(dto));
@@ -90,7 +90,7 @@ public class TaskService
         if (task.IsDeleted)
             throw new KeyNotFoundException("Task not found.");
 
-        if (dto.SprintId.HasValue && dto.SprintId.Value == Guid.Empty)
+        if (dto.SprintId.HasValue && dto.SprintId.Value == 0)
             throw new InvalidOperationException("SprintId is required.");
 
         if (dto.SprintId.HasValue && !await _taskRepository.SprintExistsAsync(dto.SprintId.Value))
@@ -167,7 +167,7 @@ public class TaskService
                 TaskId = task.Id,
                 OldStatus = oldStatus,
                 NewStatus = newStatus,
-                ChangedBy = updatedBy,
+                ChangedBy = updatedBy.ToString(),
                 ChangedAt = DateTime.UtcNow,
                 Reason = "Status updated via task workflow.",
                 CreatedBy = updatedBy,
@@ -179,7 +179,25 @@ public class TaskService
         return task;
     }
 
-    public async Task DeleteTaskAsync(Guid id, string deletedBy)
+    public async Task<TaskItem> CompleteAssignedTaskAsync(int id, int userId)
+    {
+        if (!await _taskRepository.IsAssignedToUserAsync(id, userId))
+            throw new KeyNotFoundException("Task not found.");
+
+        var task = await GetByIdAsync(id) ?? throw new KeyNotFoundException("Task not found.");
+        if (task.Status == "Cancelled")
+            throw new InvalidOperationException("A cancelled task cannot be marked complete.");
+        if (task.Status != "Done")
+        {
+            if (task.Status != "InProgress" && task.Status != "InReview")
+                task = await UpdateTaskAsync(id, new TaskUpdateDto { Status = "InProgress" }, userId);
+            return await UpdateTaskAsync(id, new TaskUpdateDto { ProgressPercentage = 100, Status = "Done" }, userId);
+        }
+
+        return await UpdateTaskAsync(id, new TaskUpdateDto { ProgressPercentage = 100 }, userId);
+    }
+
+    public async Task DeleteTaskAsync(int id, int deletedBy)
     {
         var task = await _taskRepository.GetByIdAsync(id) ?? throw new KeyNotFoundException("Task not found.");
         if (task.IsDeleted)
@@ -192,7 +210,7 @@ public class TaskService
         await _taskRepository.UpdateAsync(task);
     }
 
-    public async Task<TaskItem?> GetByIdAsync(Guid id)
+    public async Task<TaskItem?> GetByIdAsync(int id)
     {
         var task = await _taskRepository.GetByIdWithDetailsAsync(id);
         if (task != null && task.IsDeleted)
@@ -205,9 +223,9 @@ public class TaskService
         string? search,
         string? status,
         string? priority,
-        Guid? projectId,
-        Guid? sprintId,
-        Guid? userId,
+        int? projectId,
+        int? sprintId,
+        int? userId,
         DateTime? dueDate,
         bool? blocked,
         int page,
@@ -223,7 +241,7 @@ public class TaskService
         return (items, totalCount);
     }
 
-    public Task<bool> IsAssignedToUserAsync(Guid taskId, Guid userId)
+    public Task<bool> IsAssignedToUserAsync(int taskId, int userId)
     {
         return _taskRepository.IsAssignedToUserAsync(taskId, userId);
     }

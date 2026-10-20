@@ -2,11 +2,11 @@ namespace TaskSprintBoard.Backend.Data.Entities;
 
 public abstract class BaseEntity
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public int Id { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public string CreatedBy { get; set; } = string.Empty;
+    public int? CreatedBy { get; set; }
     public DateTime? UpdatedAt { get; set; }
-    public string? UpdatedBy { get; set; }
+    public int? UpdatedBy { get; set; }
     public bool IsActive { get; set; } = true;
     public bool IsDeleted { get; set; }
 }

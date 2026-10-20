@@ -15,9 +15,9 @@ public class SprintService
         _projectRepository = projectRepository;
     }
 
-    public async Task<Sprint> CreateSprintAsync(SprintCreateDto dto, string createdBy)
+    public async Task<Sprint> CreateSprintAsync(SprintCreateDto dto, int createdBy)
     {
-        if (dto.ProjectId == Guid.Empty)
+        if (dto.ProjectId == 0)
             throw new InvalidOperationException("Project is required.");
 
         var project = await _projectRepository.GetByIdAsync(dto.ProjectId)
@@ -57,7 +57,7 @@ public class SprintService
         return await _sprintRepository.AddAsync(entity);
     }
 
-    public async Task<Sprint> UpdateSprintAsync(Guid id, SprintUpdateDto dto, string updatedBy)
+    public async Task<Sprint> UpdateSprintAsync(int id, SprintUpdateDto dto, int updatedBy)
     {
         var sprint = await _sprintRepository.GetByIdAsync(id) ?? throw new KeyNotFoundException("Sprint not found.");
         var originalProjectId = sprint.ProjectId;
@@ -65,7 +65,7 @@ public class SprintService
 
         if (dto.ProjectId.HasValue)
         {
-            if (dto.ProjectId.Value == Guid.Empty)
+            if (dto.ProjectId.Value == 0)
                 throw new InvalidOperationException("Project is required.");
 
             var project = await _projectRepository.GetByIdAsync(dto.ProjectId.Value)
@@ -106,7 +106,7 @@ public class SprintService
         return sprint;
     }
 
-    public async Task DeleteSprintAsync(Guid id, string deletedBy)
+    public async Task DeleteSprintAsync(int id, int deletedBy)
     {
         var sprint = await _sprintRepository.GetByIdAsync(id) ?? throw new KeyNotFoundException("Sprint not found.");
         sprint.IsDeleted = true;
@@ -116,12 +116,12 @@ public class SprintService
         await _sprintRepository.UpdateAsync(sprint);
     }
 
-    public async Task<Sprint?> GetByIdAsync(Guid id)
+    public async Task<Sprint?> GetByIdAsync(int id)
     {
         return await _sprintRepository.GetByIdAsync(id);
     }
 
-    public async Task<(IEnumerable<Sprint> Items, int TotalCount)> SearchSprintsAsync(string? search, Guid? projectId, int page, int pageSize)
+    public async Task<(IEnumerable<Sprint> Items, int TotalCount)> SearchSprintsAsync(string? search, int? projectId, int page, int pageSize)
     {
         var skip = Math.Max(0, page - 1) * pageSize;
         var items = await _sprintRepository.SearchAsync(search, projectId, skip, pageSize);

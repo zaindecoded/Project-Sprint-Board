@@ -18,7 +18,7 @@ public class SprintsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] Guid? projectId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string search = "")
+    public async Task<IActionResult> GetAll([FromQuery] int? projectId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string search = "")
     {
         var (items, totalCount) = await _sprintService.SearchSprintsAsync(search, projectId, page, pageSize);
         var totalPages = (int)Math.Ceiling(totalCount / (double)Math.Max(1, pageSize));
@@ -39,8 +39,8 @@ public class SprintsController : ControllerBase
         return Ok(new { items = dtoItems, page, pageSize, totalCount, totalPages });
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetById(Guid id)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
     {
         var sprint = await _sprintService.GetByIdAsync(id);
         if (sprint == null)
@@ -68,7 +68,7 @@ public class SprintsController : ControllerBase
     {
         try
         {
-            var sprint = await _sprintService.CreateSprintAsync(dto, User.Identity?.Name ?? "system");
+            var sprint = await _sprintService.CreateSprintAsync(dto, User.GetActorUserId());
             var result = new SprintDto
             {
                 Id = sprint.Id,
@@ -89,13 +89,13 @@ public class SprintsController : ControllerBase
         }
     }
 
-    [HttpPut("{id:guid}")]
+    [HttpPut("{id:int}")]
     [Authorize(Roles = "Admin,ProjectManager")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] SprintUpdateDto dto)
+    public async Task<IActionResult> Update(int id, [FromBody] SprintUpdateDto dto)
     {
         try
         {
-            var sprint = await _sprintService.UpdateSprintAsync(id, dto, User.Identity?.Name ?? "system");
+            var sprint = await _sprintService.UpdateSprintAsync(id, dto, User.GetActorUserId());
             var result = new SprintDto
             {
                 Id = sprint.Id,
@@ -120,13 +120,13 @@ public class SprintsController : ControllerBase
         }
     }
 
-    [HttpDelete("{id:guid}")]
+    [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin,ProjectManager")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete(int id)
     {
         try
         {
-            await _sprintService.DeleteSprintAsync(id, User.Identity?.Name ?? "system");
+            await _sprintService.DeleteSprintAsync(id, User.GetActorUserId());
             return NoContent();
         }
         catch (KeyNotFoundException)

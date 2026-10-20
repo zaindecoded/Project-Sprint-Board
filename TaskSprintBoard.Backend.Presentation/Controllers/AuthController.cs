@@ -10,10 +10,12 @@ namespace TaskSprintBoard.Backend.Presentation.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
+    private readonly AuditLogService _auditLogService;
 
-    public AuthController(AuthService authService)
+    public AuthController(AuthService authService, AuditLogService auditLogService)
     {
         _authService = authService;
+        _auditLogService = auditLogService;
     }
 
     [AllowAnonymous]
@@ -26,6 +28,7 @@ public class AuthController : ControllerBase
         try
         {
             var loginResult = await _authService.LoginAsync(request.Email, request.Password);
+            await _auditLogService.RecordLoginAsync(loginResult.UserId, loginResult.Name);
             return Ok(new
             {
                 success = true,
@@ -34,6 +37,7 @@ public class AuthController : ControllerBase
                 name = loginResult.Name,
                 email = loginResult.Email,
                 role = loginResult.Role,
+                roleId = loginResult.RoleId,
                 expiresAt = loginResult.ExpiresAt
             });
         }

@@ -35,6 +35,7 @@ export function getTaskActivityStatus(task) {
 
 export function getAssignmentDisplayStatus(assignment, task) {
   if (!assignment.isActive) return 'Inactive';
+  if ((task?.status || '').toLowerCase() === 'done') return 'Complete';
   if (task && isPastDate(task.dueDate)) return 'Overdue';
   return 'Active';
 }

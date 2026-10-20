@@ -2,7 +2,7 @@ namespace TaskSprintBoard.Backend.BusinessLogic.DTOs;
 
 public class AiRiskEvaluationInputDto
 {
-    public Guid TaskId { get; set; }
+    public int TaskId { get; set; }
     public decimal EstimateHours { get; set; }
     public int TaskAge { get; set; }
     public int DaysRemaining { get; set; }
@@ -15,7 +15,7 @@ public class AiRiskEvaluationInputDto
 
 public class AiRiskEvaluationResultDto
 {
-    public Guid TaskId { get; set; }
+    public int TaskId { get; set; }
     public decimal RiskScore { get; set; }
     public string RiskLevel { get; set; } = string.Empty;
     public decimal Confidence { get; set; }

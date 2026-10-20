@@ -12,9 +12,9 @@ public class CommentRepository : GenericRepository<Comment>
 
     public async Task<IEnumerable<Comment>> SearchAsync(
         string? search,
-        Guid? taskId,
-        Guid? userId,
-        Guid? assignedToUserId,
+        int? taskId,
+        int? userId,
+        int? assignedToUserId,
         int skip,
         int take)
     {
@@ -46,7 +46,7 @@ public class CommentRepository : GenericRepository<Comment>
         return await query.OrderByDescending(x => x.CreatedAt).Skip(skip).Take(take).ToListAsync();
     }
 
-    public async Task<int> CountAsync(string? search, Guid? taskId, Guid? userId, Guid? assignedToUserId)
+    public async Task<int> CountAsync(string? search, int? taskId, int? userId, int? assignedToUserId)
     {
         var query = DbSet.AsNoTracking().Where(x => !x.IsDeleted).AsQueryable();
 
@@ -71,7 +71,7 @@ public class CommentRepository : GenericRepository<Comment>
         return await query.CountAsync();
     }
 
-    public async Task<Comment?> GetByIdWithDetailsAsync(Guid id)
+    public async Task<Comment?> GetByIdWithDetailsAsync(int id)
     {
         return await DbSet
             .Include(x => x.Task)
@@ -79,7 +79,7 @@ public class CommentRepository : GenericRepository<Comment>
             .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
     }
 
-    public async Task<IEnumerable<Comment>> GetByTaskIdAsync(Guid taskId)
+    public async Task<IEnumerable<Comment>> GetByTaskIdAsync(int taskId)
     {
         return await DbSet.AsNoTracking()
             .Include(x => x.User)

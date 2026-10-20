@@ -24,13 +24,13 @@ public class CommentsController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
         [FromQuery] string search = "",
-        [FromQuery] Guid? taskId = null,
-        [FromQuery] Guid? userId = null)
+        [FromQuery] int? taskId = null,
+        [FromQuery] int? userId = null)
     {
-        Guid? assignedToUserId = null;
+        int? assignedToUserId = null;
         if (User.IsInRole("TeamMember"))
         {
-            if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId))
+            if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId))
                 return Forbid();
 
             assignedToUserId = currentUserId;
@@ -43,8 +43,8 @@ public class CommentsController : ControllerBase
         return Ok(new { items = responseItems, page, pageSize, totalCount, totalPages });
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetById(Guid id)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
     {
         var comment = await _commentService.GetByIdAsync(id);
         if (comment == null)
@@ -52,7 +52,7 @@ public class CommentsController : ControllerBase
 
         if (User.IsInRole("TeamMember"))
         {
-            if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId)
+            if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId)
                 || !await _commentService.IsAssignedToTaskAsync(comment.TaskId, currentUserId))
                 return NotFound();
         }
@@ -65,17 +65,17 @@ public class CommentsController : ControllerBase
     {
         try
         {
-            Guid? assignedToUserId = null;
+            int? assignedToUserId = null;
             if (User.IsInRole("TeamMember"))
             {
-                if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId))
+                if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId))
                     return Forbid();
 
                 dto.UserId = currentUserId;
                 assignedToUserId = currentUserId;
             }
 
-            var comment = await _commentService.CreateCommentAsync(dto, User.Identity?.Name ?? "system", assignedToUserId);
+            var comment = await _commentService.CreateCommentAsync(dto, User.GetActorUserId(), assignedToUserId);
             return StatusCode(201, MapToDto(comment));
         }
         catch (KeyNotFoundException ex)
@@ -88,13 +88,13 @@ public class CommentsController : ControllerBase
         }
     }
 
-    [HttpPut("{id:guid}")]
+    [HttpPut("{id:int}")]
     [Authorize(Roles = "Admin,ProjectManager")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] CommentUpdateDto dto)
+    public async Task<IActionResult> Update(int id, [FromBody] CommentUpdateDto dto)
     {
         try
         {
-            var comment = await _commentService.UpdateCommentAsync(id, dto, User.Identity?.Name ?? "system");
+            var comment = await _commentService.UpdateCommentAsync(id, dto, User.GetActorUserId());
             return Ok(MapToDto(comment));
         }
         catch (KeyNotFoundException ex)
@@ -107,13 +107,13 @@ public class CommentsController : ControllerBase
         }
     }
 
-    [HttpDelete("{id:guid}")]
+    [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin,ProjectManager")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete(int id)
     {
         try
         {
-            await _commentService.DeleteCommentAsync(id, User.Identity?.Name ?? "system");
+            await _commentService.DeleteCommentAsync(id, User.GetActorUserId());
             return NoContent();
         }
         catch (KeyNotFoundException ex)

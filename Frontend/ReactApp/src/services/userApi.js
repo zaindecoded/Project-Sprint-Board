@@ -1,7 +1,7 @@
 import apiClient from './apiClient';
 
-export async function getUsers({ signal } = {}) {
-  const { data } = await apiClient.get('/users', { signal });
+export async function getUsers({ signal, includeInactive = false } = {}) {
+  const { data } = await apiClient.get('/users', { signal, params: includeInactive ? { includeInactive: true } : undefined });
   return data;
 }
 
@@ -17,4 +17,9 @@ export async function updateUserRole(id, role) {
 
 export async function deleteUser(id) {
   await apiClient.delete(`/users/${id}`);
+}
+
+export async function activateUser(id) {
+  const { data } = await apiClient.patch(`/users/${id}/activate`);
+  return data;
 }

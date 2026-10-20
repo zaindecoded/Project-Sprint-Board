@@ -10,7 +10,7 @@ public class SprintRepository : GenericRepository<Sprint>
     {
     }
 
-    public async Task<IEnumerable<Sprint>> SearchAsync(string? search, Guid? projectId, int skip, int take)
+    public async Task<IEnumerable<Sprint>> SearchAsync(string? search, int? projectId, int skip, int take)
     {
         var query = DbSet.AsNoTracking().Where(x => !x.IsDeleted).AsQueryable();
 
@@ -27,7 +27,7 @@ public class SprintRepository : GenericRepository<Sprint>
         return await query.OrderBy(x => x.StartDate).Skip(skip).Take(take).ToListAsync();
     }
 
-    public async Task<bool> ExistsByNameForProjectAsync(Guid projectId, string name, Guid? excludeId = null)
+    public async Task<bool> ExistsByNameForProjectAsync(int projectId, string name, int? excludeId = null)
     {
         var query = DbSet.AsNoTracking().Where(x => x.ProjectId == projectId && x.Name == name && !x.IsDeleted);
 
@@ -39,14 +39,14 @@ public class SprintRepository : GenericRepository<Sprint>
         return await query.AnyAsync();
     }
 
-    public Task<Sprint?> GetByIdWithProjectAsync(Guid id)
+    public Task<Sprint?> GetByIdWithProjectAsync(int id)
     {
         return DbSet.AsNoTracking()
             .Include(sprint => sprint.Project)
             .FirstOrDefaultAsync(sprint => sprint.Id == id && !sprint.IsDeleted);
     }
 
-    public Task<bool> HasTaskDueAfterAsync(Guid sprintId, DateTime endDate)
+    public Task<bool> HasTaskDueAfterAsync(int sprintId, DateTime endDate)
     {
         return Context.Tasks.AsNoTracking().AnyAsync(task => task.SprintId == sprintId
             && !task.IsDeleted

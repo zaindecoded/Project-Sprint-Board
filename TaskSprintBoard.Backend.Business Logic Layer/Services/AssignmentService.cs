@@ -17,15 +17,15 @@ public class AssignmentService
         _userRepository = userRepository;
     }
 
-    public async Task<Assignment> CreateAssignmentAsync(AssignmentCreateDto dto, string createdBy)
+    public async Task<Assignment> CreateAssignmentAsync(AssignmentCreateDto dto, int createdBy)
     {
         if (dto == null)
             throw new ArgumentNullException(nameof(dto));
 
-        if (dto.TaskId == Guid.Empty)
+        if (dto.TaskId == 0)
             throw new InvalidOperationException("TaskId is required.");
 
-        if (dto.UserId == Guid.Empty)
+        if (dto.UserId <= 0)
             throw new InvalidOperationException("UserId is required.");
 
         if (dto.AssignedAt.HasValue && dto.AssignedAt.Value.Date < DateTime.Today)
@@ -61,7 +61,7 @@ public class AssignmentService
         return await _assignmentRepository.AddAsync(assignment);
     }
 
-    public async Task<Assignment> UpdateAssignmentAsync(Guid id, AssignmentUpdateDto dto, string updatedBy)
+    public async Task<Assignment> UpdateAssignmentAsync(int id, AssignmentUpdateDto dto, int updatedBy)
     {
         if (dto == null)
             throw new ArgumentNullException(nameof(dto));
@@ -73,10 +73,10 @@ public class AssignmentService
         var taskId = dto.TaskId ?? assignment.TaskId;
         var userId = dto.UserId ?? assignment.UserId;
 
-        if (taskId == Guid.Empty)
+        if (taskId == 0)
             throw new InvalidOperationException("TaskId is required.");
 
-        if (userId == Guid.Empty)
+        if (userId <= 0)
             throw new InvalidOperationException("UserId is required.");
 
         var task = await _taskRepository.GetByIdAsync(taskId) ?? throw new KeyNotFoundException("Task not found.");
@@ -130,7 +130,7 @@ public class AssignmentService
         return assignment;
     }
 
-    public async Task DeleteAssignmentAsync(Guid id, string deletedBy)
+    public async Task DeleteAssignmentAsync(int id, int deletedBy)
     {
         var assignment = await _assignmentRepository.GetByIdAsync(id) ?? throw new KeyNotFoundException("Assignment not found.");
         if (assignment.IsDeleted)
@@ -145,7 +145,7 @@ public class AssignmentService
         await _assignmentRepository.UpdateAsync(assignment);
     }
 
-    public async Task<Assignment?> GetByIdAsync(Guid id)
+    public async Task<Assignment?> GetByIdAsync(int id)
     {
         var item = await _assignmentRepository.GetByIdWithDetailsAsync(id);
         if (item != null && item.IsDeleted)
@@ -156,8 +156,8 @@ public class AssignmentService
 
     public async Task<(IEnumerable<Assignment> Items, int TotalCount)> SearchAssignmentsAsync(
         string? search,
-        Guid? taskId,
-        Guid? userId,
+        int? taskId,
+        int? userId,
         bool? isActive,
         int page,
         int pageSize)

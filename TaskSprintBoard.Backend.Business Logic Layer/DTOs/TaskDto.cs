@@ -2,7 +2,7 @@ namespace TaskSprintBoard.Backend.BusinessLogic.DTOs;
 
 public class TaskCreateDto
 {
-    public Guid SprintId { get; set; }
+    public int SprintId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string Priority { get; set; } = "Medium";
@@ -16,7 +16,7 @@ public class TaskCreateDto
 
 public class TaskUpdateDto
 {
-    public Guid? SprintId { get; set; }
+    public int? SprintId { get; set; }
     public string? Title { get; set; }
     public string? Description { get; set; }
     public string? Priority { get; set; }
@@ -30,8 +30,8 @@ public class TaskUpdateDto
 
 public class TaskDto
 {
-    public Guid Id { get; set; }
-    public Guid SprintId { get; set; }
+    public int Id { get; set; }
+    public int SprintId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string Priority { get; set; } = string.Empty;

@@ -19,15 +19,15 @@ public class CommentService
         _userRepository = userRepository;
     }
 
-    public async Task<Comment> CreateCommentAsync(CommentCreateDto dto, string createdBy, Guid? assignedToUserId = null)
+    public async Task<Comment> CreateCommentAsync(CommentCreateDto dto, int createdBy, int? assignedToUserId = null)
     {
         if (dto == null)
             throw new ArgumentNullException(nameof(dto));
 
-        if (dto.TaskId == Guid.Empty)
+        if (dto.TaskId == 0)
             throw new InvalidOperationException("TaskId is required.");
 
-        if (dto.UserId == Guid.Empty)
+        if (dto.UserId <= 0)
             throw new InvalidOperationException("UserId is required.");
 
         var message = dto.Message?.Trim() ?? string.Empty;
@@ -62,7 +62,7 @@ public class CommentService
         return await _commentRepository.AddAsync(comment);
     }
 
-    public async Task<Comment> UpdateCommentAsync(Guid id, CommentUpdateDto dto, string updatedBy)
+    public async Task<Comment> UpdateCommentAsync(int id, CommentUpdateDto dto, int updatedBy)
     {
         if (dto == null)
             throw new ArgumentNullException(nameof(dto));
@@ -74,10 +74,10 @@ public class CommentService
         var taskId = dto.TaskId ?? comment.TaskId;
         var userId = dto.UserId ?? comment.UserId;
 
-        if (taskId == Guid.Empty)
+        if (taskId == 0)
             throw new InvalidOperationException("TaskId is required.");
 
-        if (userId == Guid.Empty)
+        if (userId <= 0)
             throw new InvalidOperationException("UserId is required.");
 
         var task = await _taskRepository.GetByIdAsync(taskId) ?? throw new KeyNotFoundException("Task not found.");
@@ -105,7 +105,7 @@ public class CommentService
         return comment;
     }
 
-    public async Task DeleteCommentAsync(Guid id, string deletedBy)
+    public async Task DeleteCommentAsync(int id, int deletedBy)
     {
         var comment = await _commentRepository.GetByIdAsync(id) ?? throw new KeyNotFoundException("Comment not found.");
         if (comment.IsDeleted)
@@ -119,7 +119,7 @@ public class CommentService
         await _commentRepository.UpdateAsync(comment);
     }
 
-    public async Task<Comment?> GetByIdAsync(Guid id)
+    public async Task<Comment?> GetByIdAsync(int id)
     {
         var comment = await _commentRepository.GetByIdWithDetailsAsync(id);
         if (comment != null && comment.IsDeleted)
@@ -128,16 +128,16 @@ public class CommentService
         return comment;
     }
 
-    public Task<bool> IsAssignedToTaskAsync(Guid taskId, Guid userId)
+    public Task<bool> IsAssignedToTaskAsync(int taskId, int userId)
     {
         return _taskRepository.IsAssignedToUserAsync(taskId, userId);
     }
 
     public async Task<(IEnumerable<Comment> Items, int TotalCount)> SearchCommentsAsync(
         string? search,
-        Guid? taskId,
-        Guid? userId,
-        Guid? assignedToUserId,
+        int? taskId,
+        int? userId,
+        int? assignedToUserId,
         int page,
         int pageSize)
     {

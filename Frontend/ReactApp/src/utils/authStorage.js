@@ -19,10 +19,11 @@ export function getTokenUser(token) {
 
   const role = payload.role ?? payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'];
   return {
-    id: payload.nameid ?? payload.sub ?? '',
-    name: payload.unique_name ?? payload.name ?? payload.email ?? 'User',
+    id: Number(payload.sub ?? 0),
+    name: payload.username ?? payload.unique_name ?? payload.name ?? payload.email ?? 'User',
     email: payload.email ?? '',
     role: Array.isArray(role) ? role[0] : role ?? '',
+    roleId: Number(payload.roleId ?? 0),
     expiresAt: payload.exp ? payload.exp * 1000 : null
   };
 }

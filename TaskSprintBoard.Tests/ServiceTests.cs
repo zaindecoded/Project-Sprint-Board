@@ -30,7 +30,7 @@ public class ServiceTests
             Name = projectName,
             Description = "Project description",
             Status = "Active",
-            CreatedBy = "tester",
+            CreatedBy = null,
             IsDeleted = false,
             IsActive = true
         });
@@ -43,7 +43,7 @@ public class ServiceTests
             StartDate = DateTime.UtcNow,
             EndDate = DateTime.UtcNow.AddDays(10),
             Status = "Active",
-            CreatedBy = "tester",
+            CreatedBy = null,
             IsDeleted = false,
             IsActive = true
         });
@@ -58,7 +58,7 @@ public class ServiceTests
         var repo = new ProjectRepository(context);
         var service = new ProjectService(repo);
 
-        var result = await service.CreateProjectAsync("Alpha Project", "Description", DateTime.UtcNow, DateTime.UtcNow.AddDays(10), "Active", "tester");
+        var result = await service.CreateProjectAsync("Alpha Project", "Description", DateTime.UtcNow, DateTime.UtcNow.AddDays(10), "Active", 1);
 
         Assert.Equal("Alpha Project", result.Name);
         Assert.True(result.IsActive);
@@ -71,10 +71,10 @@ public class ServiceTests
         var repo = new ProjectRepository(context);
         var service = new ProjectService(repo);
 
-        await service.CreateProjectAsync("Alpha Project", "Description", DateTime.UtcNow, DateTime.UtcNow.AddDays(10), "Active", "tester");
+        await service.CreateProjectAsync("Alpha Project", "Description", DateTime.UtcNow, DateTime.UtcNow.AddDays(10), "Active", 1);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.CreateProjectAsync("Alpha Project", "Description", DateTime.UtcNow, DateTime.UtcNow.AddDays(10), "Active", "tester"));
+            service.CreateProjectAsync("Alpha Project", "Description", DateTime.UtcNow, DateTime.UtcNow.AddDays(10), "Active", 1));
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public class ServiceTests
             Status = "Todo",
             EstimateHours = 8,
             ProgressPercentage = 10,
-            CreatedBy = "tester",
+            CreatedBy = null,
             IsDeleted = false,
             IsActive = true
         });
@@ -127,7 +127,7 @@ public class ServiceTests
             Status = "Todo",
             EstimateHours = 5,
             ProgressPercentage = 20,
-            CreatedBy = "tester",
+            CreatedBy = null,
             IsDeleted = false,
             IsActive = true
         });
@@ -159,7 +159,7 @@ public class ServiceTests
             ProgressPercentage = 0,
             StartDate = DateTime.UtcNow,
             DueDate = DateTime.UtcNow.AddDays(3)
-        }, "tester");
+        }, 1);
 
         Assert.Equal("New Task", result.Title);
         Assert.Equal(sprint.Id, result.SprintId);
@@ -184,7 +184,7 @@ public class ServiceTests
             Status = "Todo",
             EstimateHours = 6,
             ProgressPercentage = 10,
-            CreatedBy = "tester",
+            CreatedBy = null,
             IsDeleted = false,
             IsActive = true
         });
@@ -194,7 +194,7 @@ public class ServiceTests
             Title = "Updated Task C",
             Priority = "High",
             ProgressPercentage = 40
-        }, "tester");
+        }, 1);
 
         Assert.Equal("Updated Task C", updated.Title);
         Assert.Equal("High", updated.Priority);
@@ -222,7 +222,7 @@ public class ServiceTests
             ProgressPercentage = 5,
             StartDate = DateTime.UtcNow,
             DueDate = DateTime.UtcNow.AddDays(2)
-        }, "tester");
+        }, 1);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.CreateTaskAsync(new TaskCreateDto
@@ -236,7 +236,7 @@ public class ServiceTests
                 ProgressPercentage = 10,
                 StartDate = DateTime.UtcNow,
                 DueDate = DateTime.UtcNow.AddDays(3)
-            }, "tester"));
+            }, 1));
     }
 
     [Fact]
@@ -262,7 +262,7 @@ public class ServiceTests
                 ProgressPercentage = 0,
                 StartDate = DateTime.UtcNow,
                 DueDate = DateTime.UtcNow.AddDays(1)
-            }, "tester"));
+            }, 1));
     }
 
     [Fact]
@@ -288,7 +288,7 @@ public class ServiceTests
                 ProgressPercentage = 101,
                 StartDate = DateTime.UtcNow,
                 DueDate = DateTime.UtcNow.AddDays(1)
-            }, "tester"));
+            }, 1));
     }
 
     [Fact]
@@ -303,7 +303,7 @@ public class ServiceTests
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
             service.CreateTaskAsync(new TaskCreateDto
             {
-                SprintId = Guid.NewGuid(),
+                SprintId = int.MaxValue,
                 Title = "Bad sprint",
                 Description = "Bad",
                 Priority = "Medium",
@@ -312,7 +312,7 @@ public class ServiceTests
                 ProgressPercentage = 10,
                 StartDate = DateTime.UtcNow,
                 DueDate = DateTime.UtcNow.AddDays(1)
-            }, "tester"));
+            }, 1));
     }
 
     [Fact]
@@ -334,12 +334,12 @@ public class ServiceTests
             Status = "Todo",
             EstimateHours = 5,
             ProgressPercentage = 1,
-            CreatedBy = "tester",
+            CreatedBy = null,
             IsDeleted = false,
             IsActive = true
         });
 
-        await service.DeleteTaskAsync(task.Id, "tester");
+        await service.DeleteTaskAsync(task.Id, 1);
         var deleted = await service.GetByIdAsync(task.Id);
 
         Assert.Null(deleted);
@@ -364,13 +364,13 @@ public class ServiceTests
             Status = "Todo",
             EstimateHours = 8,
             ProgressPercentage = 10,
-            CreatedBy = "tester",
+            CreatedBy = null,
             IsDeleted = false,
             IsActive = true
         });
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.UpdateTaskAsync(task.Id, new TaskUpdateDto { Status = "Blocked" }, "tester"));
+            service.UpdateTaskAsync(task.Id, new TaskUpdateDto { Status = "Blocked" }, 1));
     }
 
     [Fact]
@@ -384,11 +384,11 @@ public class ServiceTests
         var assignmentRepo = new AssignmentRepository(context);
         var service = new AssignmentService(assignmentRepo, taskRepo, userRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "Project A", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Sprint A", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Task A", Description = "Details", Priority = "High", Status = "Todo", EstimateHours = 8, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var user = await userRepo.AddAsync(new User { FirstName = "Alice", LastName = "Test", Email = "alice@example.com", UserName = "alice_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        await assignmentRepo.AddAsync(new Assignment { TaskId = task.Id, UserId = user.Id, AssignedAt = DateTime.UtcNow, RoleInTask = "Owner", CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "Project A", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Sprint A", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Task A", Description = "Details", Priority = "High", Status = "Todo", EstimateHours = 8, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
+        var user = await userRepo.AddAsync(new User { FirstName = "Alice", LastName = "Test", Email = "alice@example.com", UserName = "alice_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = null, IsDeleted = false, IsActive = true });
+        await assignmentRepo.AddAsync(new Assignment { TaskId = task.Id, UserId = user.Id, AssignedAt = DateTime.UtcNow, RoleInTask = "Owner", CreatedBy = null, IsDeleted = false, IsActive = true });
 
         var (items, totalCount) = await service.SearchAssignmentsAsync(null, task.Id, null, null, 1, 10);
 
@@ -407,11 +407,11 @@ public class ServiceTests
         var assignmentRepo = new AssignmentRepository(context);
         var service = new AssignmentService(assignmentRepo, taskRepo, userRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "Project B", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Sprint B", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Task B", Description = "Details", Priority = "Medium", Status = "Todo", EstimateHours = 4, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var user = await userRepo.AddAsync(new User { FirstName = "Bob", LastName = "Test", Email = "bob@example.com", UserName = "bob_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var assignment = await assignmentRepo.AddAsync(new Assignment { TaskId = task.Id, UserId = user.Id, AssignedAt = DateTime.UtcNow, RoleInTask = "Contributor", CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "Project B", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Sprint B", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Task B", Description = "Details", Priority = "Medium", Status = "Todo", EstimateHours = 4, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
+        var user = await userRepo.AddAsync(new User { FirstName = "Bob", LastName = "Test", Email = "bob@example.com", UserName = "bob_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var assignment = await assignmentRepo.AddAsync(new Assignment { TaskId = task.Id, UserId = user.Id, AssignedAt = DateTime.UtcNow, RoleInTask = "Contributor", CreatedBy = null, IsDeleted = false, IsActive = true });
 
         var result = await service.GetByIdAsync(assignment.Id);
 
@@ -430,12 +430,12 @@ public class ServiceTests
         var assignmentRepo = new AssignmentRepository(context);
         var service = new AssignmentService(assignmentRepo, taskRepo, userRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "Project C", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Sprint C", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(7), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Task C", Description = "Details", Priority = "Low", Status = "Todo", EstimateHours = 7, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var user = await userRepo.AddAsync(new User { FirstName = "Cara", LastName = "Test", Email = "cara@example.com", UserName = "cara_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "Project C", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Sprint C", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(7), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Task C", Description = "Details", Priority = "Low", Status = "Todo", EstimateHours = 7, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
+        var user = await userRepo.AddAsync(new User { FirstName = "Cara", LastName = "Test", Email = "cara@example.com", UserName = "cara_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = null, IsDeleted = false, IsActive = true });
 
-        var result = await service.CreateAssignmentAsync(new AssignmentCreateDto { TaskId = task.Id, UserId = user.Id, RoleInTask = "Owner" }, "tester");
+        var result = await service.CreateAssignmentAsync(new AssignmentCreateDto { TaskId = task.Id, UserId = user.Id, RoleInTask = "Owner" }, 1);
 
         Assert.Equal(task.Id, result.TaskId);
         Assert.Equal(user.Id, result.UserId);
@@ -453,13 +453,13 @@ public class ServiceTests
         var assignmentRepo = new AssignmentRepository(context);
         var service = new AssignmentService(assignmentRepo, taskRepo, userRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "Project D", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Sprint D", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(8), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Task D", Description = "Details", Priority = "High", Status = "Todo", EstimateHours = 9, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var user = await userRepo.AddAsync(new User { FirstName = "Diana", LastName = "Test", Email = "diana@example.com", UserName = "diana_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var assignment = await assignmentRepo.AddAsync(new Assignment { TaskId = task.Id, UserId = user.Id, AssignedAt = DateTime.UtcNow, RoleInTask = "Owner", CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "Project D", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Sprint D", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(8), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Task D", Description = "Details", Priority = "High", Status = "Todo", EstimateHours = 9, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
+        var user = await userRepo.AddAsync(new User { FirstName = "Diana", LastName = "Test", Email = "diana@example.com", UserName = "diana_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var assignment = await assignmentRepo.AddAsync(new Assignment { TaskId = task.Id, UserId = user.Id, AssignedAt = DateTime.UtcNow, RoleInTask = "Owner", CreatedBy = null, IsDeleted = false, IsActive = true });
 
-        var updated = await service.UpdateAssignmentAsync(assignment.Id, new AssignmentUpdateDto { RoleInTask = "Reviewer", IsActive = false }, "tester");
+        var updated = await service.UpdateAssignmentAsync(assignment.Id, new AssignmentUpdateDto { RoleInTask = "Reviewer", IsActive = false }, 1);
 
         Assert.Equal("Reviewer", updated.RoleInTask);
         Assert.False(updated.IsActive);
@@ -477,13 +477,13 @@ public class ServiceTests
         var assignmentRepo = new AssignmentRepository(context);
         var service = new AssignmentService(assignmentRepo, taskRepo, userRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "Project E", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Sprint E", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(9), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Task E", Description = "Details", Priority = "Medium", Status = "Todo", EstimateHours = 6, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var user = await userRepo.AddAsync(new User { FirstName = "Evan", LastName = "Test", Email = "evan@example.com", UserName = "evan_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var assignment = await assignmentRepo.AddAsync(new Assignment { TaskId = task.Id, UserId = user.Id, AssignedAt = DateTime.UtcNow, RoleInTask = "Owner", CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "Project E", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Sprint E", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(9), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Task E", Description = "Details", Priority = "Medium", Status = "Todo", EstimateHours = 6, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
+        var user = await userRepo.AddAsync(new User { FirstName = "Evan", LastName = "Test", Email = "evan@example.com", UserName = "evan_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var assignment = await assignmentRepo.AddAsync(new Assignment { TaskId = task.Id, UserId = user.Id, AssignedAt = DateTime.UtcNow, RoleInTask = "Owner", CreatedBy = null, IsDeleted = false, IsActive = true });
 
-        await service.DeleteAssignmentAsync(assignment.Id, "tester");
+        await service.DeleteAssignmentAsync(assignment.Id, 1);
         var result = await service.GetByIdAsync(assignment.Id);
 
         Assert.Null(result);
@@ -498,9 +498,9 @@ public class ServiceTests
         var assignmentRepo = new AssignmentRepository(context);
         var service = new AssignmentService(assignmentRepo, taskRepo, userRepo);
 
-        var user = await userRepo.AddAsync(new User { FirstName = "Frank", LastName = "Test", Email = "frank@example.com", UserName = "frank_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var user = await userRepo.AddAsync(new User { FirstName = "Frank", LastName = "Test", Email = "frank@example.com", UserName = "frank_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = null, IsDeleted = false, IsActive = true });
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.CreateAssignmentAsync(new AssignmentCreateDto { TaskId = Guid.NewGuid(), UserId = user.Id, RoleInTask = "Owner" }, "tester"));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.CreateAssignmentAsync(new AssignmentCreateDto { TaskId = int.MaxValue, UserId = user.Id, RoleInTask = "Owner" }, 1));
     }
 
     [Fact]
@@ -514,11 +514,11 @@ public class ServiceTests
         var assignmentRepo = new AssignmentRepository(context);
         var service = new AssignmentService(assignmentRepo, taskRepo, userRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "Project F", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Sprint F", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(10), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Task F", Description = "Details", Priority = "Medium", Status = "Todo", EstimateHours = 5, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "Project F", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Sprint F", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(10), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Task F", Description = "Details", Priority = "Medium", Status = "Todo", EstimateHours = 5, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.CreateAssignmentAsync(new AssignmentCreateDto { TaskId = task.Id, UserId = Guid.NewGuid(), RoleInTask = "Owner" }, "tester"));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.CreateAssignmentAsync(new AssignmentCreateDto { TaskId = task.Id, UserId = int.MaxValue, RoleInTask = "Owner" }, 1));
     }
 
     [Fact]
@@ -532,14 +532,14 @@ public class ServiceTests
         var assignmentRepo = new AssignmentRepository(context);
         var service = new AssignmentService(assignmentRepo, taskRepo, userRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "Project G", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Sprint G", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(11), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Task G", Description = "Details", Priority = "High", Status = "Todo", EstimateHours = 8, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var user = await userRepo.AddAsync(new User { FirstName = "Grace", LastName = "Test", Email = "grace@example.com", UserName = "grace_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "Project G", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Sprint G", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(11), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Task G", Description = "Details", Priority = "High", Status = "Todo", EstimateHours = 8, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
+        var user = await userRepo.AddAsync(new User { FirstName = "Grace", LastName = "Test", Email = "grace@example.com", UserName = "grace_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = null, IsDeleted = false, IsActive = true });
 
-        await service.CreateAssignmentAsync(new AssignmentCreateDto { TaskId = task.Id, UserId = user.Id, RoleInTask = "Owner" }, "tester");
+        await service.CreateAssignmentAsync(new AssignmentCreateDto { TaskId = task.Id, UserId = user.Id, RoleInTask = "Owner" }, 1);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAssignmentAsync(new AssignmentCreateDto { TaskId = task.Id, UserId = user.Id, RoleInTask = "Contributor" }, "tester"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAssignmentAsync(new AssignmentCreateDto { TaskId = task.Id, UserId = user.Id, RoleInTask = "Contributor" }, 1));
     }
 
     [Fact]
@@ -553,13 +553,13 @@ public class ServiceTests
         var assignmentRepo = new AssignmentRepository(context);
         var service = new AssignmentService(assignmentRepo, taskRepo, userRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "Project H", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Sprint H", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(12), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Task H", Description = "Details", Priority = "High", Status = "Todo", EstimateHours = 10, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var user = await userRepo.AddAsync(new User { FirstName = "Hank", LastName = "Test", Email = "hank@example.com", UserName = "hank_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var assignment = await assignmentRepo.AddAsync(new Assignment { TaskId = task.Id, UserId = user.Id, AssignedAt = DateTime.UtcNow, RoleInTask = "Owner", CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "Project H", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Sprint H", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(12), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Task H", Description = "Details", Priority = "High", Status = "Todo", EstimateHours = 10, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
+        var user = await userRepo.AddAsync(new User { FirstName = "Hank", LastName = "Test", Email = "hank@example.com", UserName = "hank_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var assignment = await assignmentRepo.AddAsync(new Assignment { TaskId = task.Id, UserId = user.Id, AssignedAt = DateTime.UtcNow, RoleInTask = "Owner", CreatedBy = null, IsDeleted = false, IsActive = true });
 
-        await service.DeleteAssignmentAsync(assignment.Id, "tester");
+        await service.DeleteAssignmentAsync(assignment.Id, 1);
         var (items, totalCount) = await service.SearchAssignmentsAsync(null, task.Id, null, null, 1, 10);
 
         Assert.Equal(0, totalCount);
@@ -577,11 +577,11 @@ public class ServiceTests
         var commentRepo = new CommentRepository(context);
         var service = new CommentService(commentRepo, taskRepo, userRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "Comment Project", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Comment Sprint", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Comment Task", Description = "Details", Priority = "High", Status = "Todo", EstimateHours = 8, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var user = await userRepo.AddAsync(new User { FirstName = "Eve", LastName = "Test", Email = "eve@example.com", UserName = "eve_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        await commentRepo.AddAsync(new Comment { TaskId = task.Id, UserId = user.Id, Message = "Looks good.", CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "Comment Project", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Comment Sprint", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Comment Task", Description = "Details", Priority = "High", Status = "Todo", EstimateHours = 8, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
+        var user = await userRepo.AddAsync(new User { FirstName = "Eve", LastName = "Test", Email = "eve@example.com", UserName = "eve_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = null, IsDeleted = false, IsActive = true });
+        await commentRepo.AddAsync(new Comment { TaskId = task.Id, UserId = user.Id, Message = "Looks good.", CreatedBy = null, IsDeleted = false, IsActive = true });
 
         var (items, totalCount) = await service.SearchCommentsAsync(null, task.Id, null, null, 1, 10);
 
@@ -600,11 +600,11 @@ public class ServiceTests
         var commentRepo = new CommentRepository(context);
         var service = new CommentService(commentRepo, taskRepo, userRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "Comment Project 2", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Comment Sprint 2", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Comment Task 2", Description = "Details", Priority = "Medium", Status = "Todo", EstimateHours = 4, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var user = await userRepo.AddAsync(new User { FirstName = "Frank", LastName = "Test", Email = "frank@example.com", UserName = "frank_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var comment = await commentRepo.AddAsync(new Comment { TaskId = task.Id, UserId = user.Id, Message = "Needs review.", CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "Comment Project 2", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Comment Sprint 2", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Comment Task 2", Description = "Details", Priority = "Medium", Status = "Todo", EstimateHours = 4, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
+        var user = await userRepo.AddAsync(new User { FirstName = "Frank", LastName = "Test", Email = "frank@example.com", UserName = "frank_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var comment = await commentRepo.AddAsync(new Comment { TaskId = task.Id, UserId = user.Id, Message = "Needs review.", CreatedBy = null, IsDeleted = false, IsActive = true });
 
         var result = await service.GetByIdAsync(comment.Id);
 
@@ -623,12 +623,12 @@ public class ServiceTests
         var commentRepo = new CommentRepository(context);
         var service = new CommentService(commentRepo, taskRepo, userRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "Comment Project 3", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Comment Sprint 3", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Comment Task 3", Description = "Details", Priority = "Low", Status = "Todo", EstimateHours = 2, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var user = await userRepo.AddAsync(new User { FirstName = "Grace", LastName = "Test", Email = "grace@example.com", UserName = "grace_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "Comment Project 3", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Comment Sprint 3", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Comment Task 3", Description = "Details", Priority = "Low", Status = "Todo", EstimateHours = 2, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
+        var user = await userRepo.AddAsync(new User { FirstName = "Grace", LastName = "Test", Email = "grace@example.com", UserName = "grace_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = null, IsDeleted = false, IsActive = true });
 
-        var result = await service.CreateCommentAsync(new CommentCreateDto { TaskId = task.Id, UserId = user.Id, Message = "Added note" }, "tester");
+        var result = await service.CreateCommentAsync(new CommentCreateDto { TaskId = task.Id, UserId = user.Id, Message = "Added note" }, 1);
 
         Assert.Equal(task.Id, result.TaskId);
         Assert.Equal(user.Id, result.UserId);
@@ -646,13 +646,13 @@ public class ServiceTests
         var commentRepo = new CommentRepository(context);
         var service = new CommentService(commentRepo, taskRepo, userRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "Comment Project 4", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Comment Sprint 4", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Comment Task 4", Description = "Details", Priority = "High", Status = "Todo", EstimateHours = 6, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var user = await userRepo.AddAsync(new User { FirstName = "Hank", LastName = "Test", Email = "hank@example.com", UserName = "hank_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var comment = await commentRepo.AddAsync(new Comment { TaskId = task.Id, UserId = user.Id, Message = "Original note", CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "Comment Project 4", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Comment Sprint 4", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Comment Task 4", Description = "Details", Priority = "High", Status = "Todo", EstimateHours = 6, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
+        var user = await userRepo.AddAsync(new User { FirstName = "Hank", LastName = "Test", Email = "hank@example.com", UserName = "hank_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var comment = await commentRepo.AddAsync(new Comment { TaskId = task.Id, UserId = user.Id, Message = "Original note", CreatedBy = null, IsDeleted = false, IsActive = true });
 
-        var updated = await service.UpdateCommentAsync(comment.Id, new CommentUpdateDto { Message = "Updated note" }, "tester");
+        var updated = await service.UpdateCommentAsync(comment.Id, new CommentUpdateDto { Message = "Updated note" }, 1);
 
         Assert.Equal("Updated note", updated.Message);
     }
@@ -668,13 +668,13 @@ public class ServiceTests
         var commentRepo = new CommentRepository(context);
         var service = new CommentService(commentRepo, taskRepo, userRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "Comment Project 5", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Comment Sprint 5", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Comment Task 5", Description = "Details", Priority = "High", Status = "Todo", EstimateHours = 3, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var user = await userRepo.AddAsync(new User { FirstName = "Ivy", LastName = "Test", Email = "ivy@example.com", UserName = "ivy_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var comment = await commentRepo.AddAsync(new Comment { TaskId = task.Id, UserId = user.Id, Message = "Delete me", CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "Comment Project 5", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Comment Sprint 5", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Comment Task 5", Description = "Details", Priority = "High", Status = "Todo", EstimateHours = 3, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
+        var user = await userRepo.AddAsync(new User { FirstName = "Ivy", LastName = "Test", Email = "ivy@example.com", UserName = "ivy_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var comment = await commentRepo.AddAsync(new Comment { TaskId = task.Id, UserId = user.Id, Message = "Delete me", CreatedBy = null, IsDeleted = false, IsActive = true });
 
-        await service.DeleteCommentAsync(comment.Id, "tester");
+        await service.DeleteCommentAsync(comment.Id, 1);
 
         var result = await service.GetByIdAsync(comment.Id);
         Assert.Null(result);
@@ -689,9 +689,9 @@ public class ServiceTests
         var commentRepo = new CommentRepository(context);
         var service = new CommentService(commentRepo, taskRepo, userRepo);
 
-        var user = await userRepo.AddAsync(new User { FirstName = "Jill", LastName = "Test", Email = "jill@example.com", UserName = "jill_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var user = await userRepo.AddAsync(new User { FirstName = "Jill", LastName = "Test", Email = "jill@example.com", UserName = "jill_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = null, IsDeleted = false, IsActive = true });
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.CreateCommentAsync(new CommentCreateDto { TaskId = Guid.NewGuid(), UserId = user.Id, Message = "Note" }, "tester"));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.CreateCommentAsync(new CommentCreateDto { TaskId = int.MaxValue, UserId = user.Id, Message = "Note" }, 1));
     }
 
     [Fact]
@@ -705,11 +705,11 @@ public class ServiceTests
         var commentRepo = new CommentRepository(context);
         var service = new CommentService(commentRepo, taskRepo, userRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "Comment Project 6", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Comment Sprint 6", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Comment Task 6", Description = "Details", Priority = "Medium", Status = "Todo", EstimateHours = 5, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "Comment Project 6", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Comment Sprint 6", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Comment Task 6", Description = "Details", Priority = "Medium", Status = "Todo", EstimateHours = 5, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.CreateCommentAsync(new CommentCreateDto { TaskId = task.Id, UserId = Guid.NewGuid(), Message = "Note" }, "tester"));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.CreateCommentAsync(new CommentCreateDto { TaskId = task.Id, UserId = int.MaxValue, Message = "Note" }, 1));
     }
 
     [Fact]
@@ -723,12 +723,12 @@ public class ServiceTests
         var commentRepo = new CommentRepository(context);
         var service = new CommentService(commentRepo, taskRepo, userRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "Comment Project 7", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Comment Sprint 7", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Comment Task 7", Description = "Details", Priority = "Low", Status = "Todo", EstimateHours = 2, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var user = await userRepo.AddAsync(new User { FirstName = "Kai", LastName = "Test", Email = "kai@example.com", UserName = "kai_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "Comment Project 7", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Comment Sprint 7", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Comment Task 7", Description = "Details", Priority = "Low", Status = "Todo", EstimateHours = 2, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
+        var user = await userRepo.AddAsync(new User { FirstName = "Kai", LastName = "Test", Email = "kai@example.com", UserName = "kai_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = null, IsDeleted = false, IsActive = true });
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateCommentAsync(new CommentCreateDto { TaskId = task.Id, UserId = user.Id, Message = "   " }, "tester"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateCommentAsync(new CommentCreateDto { TaskId = task.Id, UserId = user.Id, Message = "   " }, 1));
     }
 
     [Fact]
@@ -742,13 +742,13 @@ public class ServiceTests
         var commentRepo = new CommentRepository(context);
         var service = new CommentService(commentRepo, taskRepo, userRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "Comment Project 8", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Comment Sprint 8", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Comment Task 8", Description = "Details", Priority = "Medium", Status = "Todo", EstimateHours = 4, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var user = await userRepo.AddAsync(new User { FirstName = "Leo", LastName = "Test", Email = "leo@example.com", UserName = "leo_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "Comment Project 8", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Comment Sprint 8", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Comment Task 8", Description = "Details", Priority = "Medium", Status = "Todo", EstimateHours = 4, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
+        var user = await userRepo.AddAsync(new User { FirstName = "Leo", LastName = "Test", Email = "leo@example.com", UserName = "leo_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = null, IsDeleted = false, IsActive = true });
 
         var longMessage = new string('x', 2001);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateCommentAsync(new CommentCreateDto { TaskId = task.Id, UserId = user.Id, Message = longMessage }, "tester"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateCommentAsync(new CommentCreateDto { TaskId = task.Id, UserId = user.Id, Message = longMessage }, 1));
     }
 
     [Fact]
@@ -762,13 +762,13 @@ public class ServiceTests
         var commentRepo = new CommentRepository(context);
         var service = new CommentService(commentRepo, taskRepo, userRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "Comment Project 9", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Comment Sprint 9", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Comment Task 9", Description = "Details", Priority = "High", Status = "Todo", EstimateHours = 7, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var user = await userRepo.AddAsync(new User { FirstName = "Mia", LastName = "Test", Email = "mia@example.com", UserName = "mia_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var comment = await commentRepo.AddAsync(new Comment { TaskId = task.Id, UserId = user.Id, Message = "Should be hidden", CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "Comment Project 9", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Comment Sprint 9", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(5), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Comment Task 9", Description = "Details", Priority = "High", Status = "Todo", EstimateHours = 7, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
+        var user = await userRepo.AddAsync(new User { FirstName = "Mia", LastName = "Test", Email = "mia@example.com", UserName = "mia_test", PasswordHash = "hash", Role = "TeamMember", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var comment = await commentRepo.AddAsync(new Comment { TaskId = task.Id, UserId = user.Id, Message = "Should be hidden", CreatedBy = null, IsDeleted = false, IsActive = true });
 
-        await service.DeleteCommentAsync(comment.Id, "tester");
+        await service.DeleteCommentAsync(comment.Id, 1);
         var (items, totalCount) = await service.SearchCommentsAsync(null, task.Id, null, null, 1, 10);
 
         Assert.Equal(0, totalCount);
@@ -794,12 +794,12 @@ public class ServiceTests
             Status = "Todo",
             EstimateHours = 5,
             ProgressPercentage = 10,
-            CreatedBy = "tester",
+            CreatedBy = null,
             IsDeleted = false,
             IsActive = true
         });
 
-        await service.UpdateTaskAsync(task.Id, new TaskUpdateDto { Status = "InProgress" }, "tester");
+        await service.UpdateTaskAsync(task.Id, new TaskUpdateDto { Status = "InProgress" }, 1);
 
         var history = await historyRepo.GetByTaskIdAsync(task.Id);
         var latest = history.First();
@@ -828,12 +828,12 @@ public class ServiceTests
             Status = "Todo",
             EstimateHours = 4,
             ProgressPercentage = 15,
-            CreatedBy = "tester",
+            CreatedBy = null,
             IsDeleted = false,
             IsActive = true
         });
 
-        await service.UpdateTaskAsync(task.Id, new TaskUpdateDto { Description = "updated description" }, "tester");
+        await service.UpdateTaskAsync(task.Id, new TaskUpdateDto { Description = "updated description" }, 1);
 
         var history = await historyRepo.GetByTaskIdAsync(task.Id);
         Assert.Empty(history);
@@ -858,12 +858,12 @@ public class ServiceTests
             Status = "Todo",
             EstimateHours = 2,
             ProgressPercentage = 5,
-            CreatedBy = "tester",
+            CreatedBy = null,
             IsDeleted = false,
             IsActive = true
         });
 
-        await Assert.ThrowsAsync<ArgumentException>(() => service.UpdateTaskAsync(task.Id, new TaskUpdateDto { Status = "NotARealStatus" }, "tester"));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.UpdateTaskAsync(task.Id, new TaskUpdateDto { Status = "NotARealStatus" }, 1));
     }
 
     [Fact]
@@ -876,11 +876,11 @@ public class ServiceTests
         var statusHistoryRepo = new StatusHistoryRepository(context);
         var service = new StatusHistoryService(statusHistoryRepo, taskRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "History Project", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "History Sprint", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(8), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "History Task", Description = "Description", Priority = "High", Status = "Todo", EstimateHours = 6, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "History Project", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "History Sprint", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(8), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "History Task", Description = "Description", Priority = "High", Status = "Todo", EstimateHours = 6, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
 
-        await statusHistoryRepo.AddAsync(new StatusHistory { TaskId = task.Id, OldStatus = "Todo", NewStatus = "InProgress", ChangedBy = "tester", ChangedAt = DateTime.UtcNow, CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        await statusHistoryRepo.AddAsync(new StatusHistory { TaskId = task.Id, OldStatus = "Todo", NewStatus = "InProgress", ChangedBy = "tester", ChangedAt = DateTime.UtcNow, CreatedBy = null, IsDeleted = false, IsActive = true });
 
         var history = await service.GetByTaskIdAsync(task.Id);
 
@@ -896,7 +896,7 @@ public class ServiceTests
         var taskRepo = new TaskRepository(context);
         var service = new StatusHistoryService(statusHistoryRepo, taskRepo);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateStatusHistoryAsync(Guid.Empty, "Todo", "InProgress", "tester"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateStatusHistoryAsync(0, "Todo", "InProgress", "tester"));
     }
 
     [Fact]
@@ -909,10 +909,10 @@ public class ServiceTests
         var statusHistoryRepo = new StatusHistoryRepository(context);
         var service = new StatusHistoryService(statusHistoryRepo, taskRepo);
 
-        var project = await projectRepo.AddAsync(new Project { Name = "Delete History Project", Description = "Desc", Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Delete History Sprint", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(8), Status = "Active", CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Delete History Task", Description = "Description", Priority = "High", Status = "Todo", EstimateHours = 6, ProgressPercentage = 0, CreatedBy = "tester", IsDeleted = false, IsActive = true });
-        var history = await statusHistoryRepo.AddAsync(new StatusHistory { TaskId = task.Id, OldStatus = "Todo", NewStatus = "InProgress", ChangedBy = "tester", ChangedAt = DateTime.UtcNow, CreatedBy = "tester", IsDeleted = false, IsActive = true });
+        var project = await projectRepo.AddAsync(new Project { Name = "Delete History Project", Description = "Desc", Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var sprint = await sprintRepo.AddAsync(new Sprint { ProjectId = project.Id, Name = "Delete History Sprint", Goal = "Goal", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(8), Status = "Active", CreatedBy = null, IsDeleted = false, IsActive = true });
+        var task = await taskRepo.AddAsync(new TaskItem { SprintId = sprint.Id, Title = "Delete History Task", Description = "Description", Priority = "High", Status = "Todo", EstimateHours = 6, ProgressPercentage = 0, CreatedBy = null, IsDeleted = false, IsActive = true });
+        var history = await statusHistoryRepo.AddAsync(new StatusHistory { TaskId = task.Id, OldStatus = "Todo", NewStatus = "InProgress", ChangedBy = "tester", ChangedAt = DateTime.UtcNow, CreatedBy = null, IsDeleted = false, IsActive = true });
 
         history.IsDeleted = true;
         history.UpdatedAt = DateTime.UtcNow;
@@ -949,7 +949,7 @@ public class ServiceTests
             UserName = "alice_auth",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainPassword),
             Role = "Admin",
-            CreatedBy = "tester",
+            CreatedBy = null,
             IsDeleted = false,
             IsActive = true
         });
@@ -986,7 +986,7 @@ public class ServiceTests
             UserName = "bob_auth",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("ValidPass123!"),
             Role = "TeamMember",
-            CreatedBy = "tester",
+            CreatedBy = null,
             IsDeleted = false,
             IsActive = true
         });
@@ -1020,7 +1020,7 @@ public class ServiceTests
             UserName = "cara_auth",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
             Role = "ProjectManager",
-            CreatedBy = "tester",
+            CreatedBy = null,
             IsDeleted = false,
             IsActive = true
         });
@@ -1040,14 +1040,14 @@ public class ServiceTests
 
         var task = new TaskItem
         {
-            SprintId = Guid.NewGuid(),
+            SprintId = int.MaxValue,
             Title = "Risk task",
             Description = "Risky task",
             Priority = "Critical",
             Status = "Blocked",
             EstimateHours = 40,
             ProgressPercentage = 10,
-            CreatedBy = "tester",
+            CreatedBy = null,
             IsDeleted = false,
             IsActive = true
         };
@@ -1065,7 +1065,7 @@ public class ServiceTests
             Priority = "Critical",
             CurrentStatus = "Blocked",
             NumberOfStatusChanges = 3
-        }, "tester");
+        }, 1);
 
         Assert.NotNull(result);
         Assert.True(result.RiskScore >= 0m);

@@ -27,6 +27,7 @@ builder.Services.AddScoped<AssignmentRepository>();
 builder.Services.AddScoped<CommentRepository>();
 builder.Services.AddScoped<StatusHistoryRepository>();
 builder.Services.AddScoped<TaskRiskEvaluationRepository>();
+builder.Services.AddScoped<AuditLogRepository>();
 
 builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<SprintService>();
@@ -38,6 +39,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<AiRiskService>();
 builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<AuditLogService>();
 
 var configuredJwtKey = builder.Configuration["Jwt:Key"];
 var jwtKey = !string.IsNullOrWhiteSpace(configuredJwtKey)
@@ -65,6 +67,8 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = jwtIssuer,
         ValidAudience = jwtAudience,
+        NameClaimType = "username",
+        RoleClaimType = ClaimTypes.Role,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
         ClockSkew = TimeSpan.FromMinutes(1)
     };
@@ -73,7 +77,7 @@ builder.Services.AddAuthentication(options =>
         OnTokenValidated = async context =>
         {
             var userIdValue = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!Guid.TryParse(userIdValue, out var userId))
+            if (!int.TryParse(userIdValue, out var userId) || userId <= 0)
             {
                 context.Fail("The token does not identify a valid user.");
                 return;

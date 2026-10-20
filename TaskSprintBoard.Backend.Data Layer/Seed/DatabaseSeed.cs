@@ -13,11 +13,11 @@ public static class DatabaseSeed
             {
                 var users = new[]
                 {
-                    new User { FirstName = "Alice", LastName = "Adams", Email = "alice@company.com", UserName = "alice", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"), Role = "Admin", CreatedBy = "system" },
-                    new User { FirstName = "Brian", LastName = "Baker", Email = "brian@company.com", UserName = "brian", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Manager123!"), Role = "ProjectManager", CreatedBy = "system" },
-                    new User { FirstName = "Cara", LastName = "Clark", Email = "cara@company.com", UserName = "cara", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Member123!"), Role = "TeamMember", CreatedBy = "system" },
-                    new User { FirstName = "David", LastName = "Dunne", Email = "david@company.com", UserName = "david", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Member123!"), Role = "TeamMember", CreatedBy = "system" },
-                    new User { FirstName = "Ella", LastName = "Evans", Email = "ella@company.com", UserName = "ella", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Manager123!"), Role = "ProjectManager", CreatedBy = "system" }
+                    new User { FirstName = "Alice", LastName = "Adams", Email = "alice@company.com", UserName = "alice", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"), Role = "Admin", RoleId = 1, CreatedBy = null },
+                    new User { FirstName = "Brian", LastName = "Baker", Email = "brian@company.com", UserName = "brian", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Manager123!"), Role = "ProjectManager", RoleId = 2, CreatedBy = null },
+                    new User { FirstName = "Cara", LastName = "Clark", Email = "cara@company.com", UserName = "cara", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Member123!"), Role = "TeamMember", RoleId = 3, CreatedBy = null },
+                    new User { FirstName = "David", LastName = "Dunne", Email = "david@company.com", UserName = "david", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Member123!"), Role = "TeamMember", RoleId = 3, CreatedBy = null },
+                    new User { FirstName = "Ella", LastName = "Evans", Email = "ella@company.com", UserName = "ella", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Manager123!"), Role = "ProjectManager", RoleId = 2, CreatedBy = null }
                 };
 
                 context.Users.AddRange(users);
@@ -36,7 +36,8 @@ public static class DatabaseSeed
                     Email = "alice@company.com",
                     UserName = "alice",
                     Role = "Admin",
-                    CreatedBy = "system"
+                    RoleId = 1,
+                    CreatedBy = null
                 };
                 context.Users.Add(developmentAdmin);
                 developmentAdmin.PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!");
@@ -50,7 +51,7 @@ public static class DatabaseSeed
                     Name = "Task Sprint Board",
                     Description = "Core planning project for sprint execution and task tracking.",
                     Status = "Active",
-                    CreatedBy = "system"
+                    CreatedBy = null
                 };
 
                 var sprint = new Sprint
@@ -60,7 +61,7 @@ public static class DatabaseSeed
                     StartDate = DateTime.UtcNow.AddDays(-12),
                     EndDate = DateTime.UtcNow.AddDays(18),
                     Status = "Active",
-                    CreatedBy = "system",
+                    CreatedBy = null,
                     Project = project
                 };
 
@@ -77,7 +78,7 @@ public static class DatabaseSeed
                     StartDate = DateTime.UtcNow.AddDays(-8),
                     DueDate = DateTime.UtcNow.AddDays(5),
                     BlockerInformation = "Waiting on review feedback.",
-                    CreatedBy = "system",
+                    CreatedBy = null,
                     Sprint = sprint
                 };
 
@@ -91,7 +92,7 @@ public static class DatabaseSeed
                     ProgressPercentage = 15,
                     StartDate = DateTime.UtcNow.AddDays(-3),
                     DueDate = DateTime.UtcNow.AddDays(7),
-                    CreatedBy = "system",
+                    CreatedBy = null,
                     Sprint = sprint
                 };
 
@@ -101,17 +102,17 @@ public static class DatabaseSeed
                 var users = context.Users.ToList();
                 if (users.Count >= 3)
                 {
-                    task1.Assignments.Add(new Assignment { User = users[0], AssignedAt = DateTime.UtcNow.AddDays(-5), RoleInTask = "Owner", CreatedBy = "system" });
-                    task1.Assignments.Add(new Assignment { User = users[2], AssignedAt = DateTime.UtcNow.AddDays(-2), RoleInTask = "Contributor", CreatedBy = "system" });
+                    task1.Assignments.Add(new Assignment { User = users[0], AssignedAt = DateTime.UtcNow.AddDays(-5), RoleInTask = "Owner", CreatedBy = null });
+                    task1.Assignments.Add(new Assignment { User = users[2], AssignedAt = DateTime.UtcNow.AddDays(-2), RoleInTask = "Contributor", CreatedBy = null });
                 }
 
                 if (users.Count >= 2)
                 {
-                    task2.Assignments.Add(new Assignment { User = users[1], AssignedAt = DateTime.UtcNow.AddDays(-1), RoleInTask = "Owner", CreatedBy = "system" });
+                    task2.Assignments.Add(new Assignment { User = users[1], AssignedAt = DateTime.UtcNow.AddDays(-1), RoleInTask = "Owner", CreatedBy = null });
                 }
 
-                task1.Comments.Add(new Comment { User = users[0], Message = "Initial backend setup is underway.", CreatedBy = "system" });
-                task1.StatusHistory.Add(new StatusHistory { OldStatus = "Todo", NewStatus = "InProgress", ChangedBy = "alice", ChangedAt = DateTime.UtcNow.AddDays(-2), Reason = "Work started.", CreatedBy = "system" });
+                task1.Comments.Add(new Comment { User = users[0], Message = "Initial backend setup is underway.", CreatedBy = null });
+                task1.StatusHistory.Add(new StatusHistory { OldStatus = "Todo", NewStatus = "InProgress", ChangedBy = "alice", ChangedAt = DateTime.UtcNow.AddDays(-2), Reason = "Work started.", CreatedBy = null });
                 task1.RiskEvaluations.Add(new TaskRiskEvaluation
                 {
                     EstimateHours = 24,
@@ -129,7 +130,7 @@ public static class DatabaseSeed
                     Explanation = "This task is behind schedule and blocked by review feedback.",
                     EvaluatedAt = DateTime.UtcNow,
                     EvaluatedBy = "alice",
-                    CreatedBy = "system"
+                    CreatedBy = null
                 });
 
                 context.Projects.Add(project);

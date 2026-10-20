@@ -33,6 +33,11 @@ export async function updateTask(id, task) {
   return data;
 }
 
+export async function completeAssignedTask(id) {
+  const { data } = await apiClient.patch(`/tasks/${id}/complete`);
+  return data;
+}
+
 export async function deleteTask(id) {
   await apiClient.delete(`/tasks/${id}`);
 }

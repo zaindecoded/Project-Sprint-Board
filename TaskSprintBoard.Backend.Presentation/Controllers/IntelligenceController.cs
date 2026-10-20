@@ -23,7 +23,7 @@ public class IntelligenceController : ControllerBase
     {
         try
         {
-            var result = await _aiRiskService.EvaluateAsync(dto, User.Identity?.Name ?? "system");
+            var result = await _aiRiskService.EvaluateAsync(dto, User.GetActorUserId());
             return Ok(result);
         }
         catch (Exception ex)

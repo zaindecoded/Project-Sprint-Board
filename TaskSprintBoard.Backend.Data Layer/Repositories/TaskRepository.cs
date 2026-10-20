@@ -14,9 +14,9 @@ public class TaskRepository : GenericRepository<TaskItem>
         string? search,
         string? status,
         string? priority,
-        Guid? projectId,
-        Guid? sprintId,
-        Guid? userId,
+        int? projectId,
+        int? sprintId,
+        int? userId,
         DateTime? dueDate,
         bool? blocked,
         int skip,
@@ -78,9 +78,9 @@ public class TaskRepository : GenericRepository<TaskItem>
         string? search,
         string? status,
         string? priority,
-        Guid? projectId,
-        Guid? sprintId,
-        Guid? userId,
+        int? projectId,
+        int? sprintId,
+        int? userId,
         DateTime? dueDate,
         bool? blocked)
     {
@@ -129,7 +129,7 @@ public class TaskRepository : GenericRepository<TaskItem>
         return await query.CountAsync();
     }
 
-    public async Task<TaskItem?> GetByIdWithDetailsAsync(Guid id)
+    public async Task<TaskItem?> GetByIdWithDetailsAsync(int id)
     {
         return await DbSet
             .Include(x => x.Sprint)
@@ -142,16 +142,21 @@ public class TaskRepository : GenericRepository<TaskItem>
             .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
     }
 
-    public async Task<IEnumerable<TaskItem>> GetAllWithRiskEvaluationsAsync()
+    public async Task<IEnumerable<TaskItem>> GetAllWithRiskEvaluationsAsync(int? assignedUserId = null)
     {
-        return await DbSet
+        var query = DbSet
             .AsNoTracking()
             .Include(x => x.RiskEvaluations)
-            .Where(x => !x.IsDeleted)
-            .ToListAsync();
+            .Where(x => !x.IsDeleted);
+
+        if (assignedUserId.HasValue)
+            query = query.Where(x => x.Assignments.Any(assignment => assignment.UserId == assignedUserId.Value
+                && assignment.IsActive && !assignment.IsDeleted));
+
+        return await query.ToListAsync();
     }
 
-    public async Task<bool> ExistsByTitleInSprintAsync(Guid sprintId, string title, Guid? excludeId = null)
+    public async Task<bool> ExistsByTitleInSprintAsync(int sprintId, string title, int? excludeId = null)
     {
         var query = DbSet.AsNoTracking().Where(x => x.SprintId == sprintId && x.Title == title && !x.IsDeleted);
         if (excludeId.HasValue)
@@ -162,19 +167,19 @@ public class TaskRepository : GenericRepository<TaskItem>
         return await query.AnyAsync();
     }
 
-    public async Task<bool> SprintExistsAsync(Guid sprintId)
+    public async Task<bool> SprintExistsAsync(int sprintId)
     {
         return await Context.Set<Sprint>().AsNoTracking().AnyAsync(x => x.Id == sprintId && !x.IsDeleted);
     }
 
-    public Task<bool> HasAssignmentAfterAsync(Guid taskId, DateTime dueDate)
+    public Task<bool> HasAssignmentAfterAsync(int taskId, DateTime dueDate)
     {
         return Context.Assignments.AsNoTracking().AnyAsync(assignment => assignment.TaskId == taskId
             && !assignment.IsDeleted
             && assignment.AssignedAt.Date > dueDate.Date);
     }
 
-    public async Task<bool> IsAssignedToUserAsync(Guid taskId, Guid userId)
+    public async Task<bool> IsAssignedToUserAsync(int taskId, int userId)
     {
         return await DbSet.AsNoTracking().AnyAsync(task => task.Id == taskId
             && !task.IsDeleted

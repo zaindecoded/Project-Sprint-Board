@@ -8,5 +8,5 @@ public class Project : BaseEntity
     public DateTime? EndDate { get; set; }
     public string Status { get; set; } = "Active";
 
-    public ICollection<Sprint> Sprints { get; set; } = new List<Sprint>();
+    public ICollection<Sprint> Sprints { get; set; } = [];
 }

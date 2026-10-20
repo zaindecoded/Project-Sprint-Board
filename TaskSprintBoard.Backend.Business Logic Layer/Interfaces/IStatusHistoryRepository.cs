@@ -4,6 +4,6 @@ namespace TaskSprintBoard.Backend.BusinessLogic.Interfaces;
 
 public interface IStatusHistoryRepository
 {
-    Task<IEnumerable<StatusHistory>> GetByTaskIdAsync(Guid taskId);
+    Task<IEnumerable<StatusHistory>> GetByTaskIdAsync(int taskId);
     Task<StatusHistory> AddAsync(StatusHistory statusHistory);
 }

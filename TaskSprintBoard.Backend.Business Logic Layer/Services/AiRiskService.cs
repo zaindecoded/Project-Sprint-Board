@@ -15,7 +15,7 @@ public class AiRiskService
         _taskRepository = taskRepository;
     }
 
-    public async Task<AiRiskEvaluationResultDto> EvaluateAsync(AiRiskEvaluationInputDto dto, string evaluatedBy)
+    public async Task<AiRiskEvaluationResultDto> EvaluateAsync(AiRiskEvaluationInputDto dto, int evaluatedBy)
     {
         if (dto.EstimateHours <= 0)
             throw new InvalidOperationException("EstimateHours must be greater than zero.");
@@ -58,7 +58,7 @@ public class AiRiskService
             RiskFactors = explanation,
             Explanation = explanation,
             EvaluatedAt = DateTime.UtcNow,
-            EvaluatedBy = evaluatedBy,
+            EvaluatedBy = evaluatedBy.ToString(),
             CreatedBy = evaluatedBy,
             IsActive = true,
             IsDeleted = false

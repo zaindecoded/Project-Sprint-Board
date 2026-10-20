@@ -2,7 +2,7 @@ namespace TaskSprintBoard.Backend.Data.Entities;
 
 public class TaskItem : BaseEntity
 {
-    public Guid SprintId { get; set; }
+    public int SprintId { get; set; }
     public Sprint Sprint { get; set; } = null!;
 
     public string Title { get; set; } = string.Empty;
@@ -15,8 +15,8 @@ public class TaskItem : BaseEntity
     public DateTime? DueDate { get; set; }
     public string? BlockerInformation { get; set; }
 
-    public ICollection<Assignment> Assignments { get; set; } = new List<Assignment>();
-    public ICollection<Comment> Comments { get; set; } = new List<Comment>();
-    public ICollection<StatusHistory> StatusHistory { get; set; } = new List<StatusHistory>();
-    public ICollection<TaskRiskEvaluation> RiskEvaluations { get; set; } = new List<TaskRiskEvaluation>();
+    public ICollection<Assignment> Assignments { get; set; } = [];
+    public ICollection<Comment> Comments { get; set; } = [];
+    public ICollection<StatusHistory> StatusHistory { get; set; } = [];
+    public ICollection<TaskRiskEvaluation> RiskEvaluations { get; set; } = [];
 }

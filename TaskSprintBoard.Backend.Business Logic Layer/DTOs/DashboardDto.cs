@@ -7,9 +7,13 @@ public class DashboardSummaryDto
     public int ActiveProjects { get; set; }
     public int ActiveSprints { get; set; }
     public int TotalTasks { get; set; }
+    public int TodoTasks { get; set; }
+    public int InProgressTasks { get; set; }
     public int CompletedTasks { get; set; }
     public int OverdueTasks { get; set; }
     public int BlockedTasks { get; set; }
+    public int LowRiskTasks { get; set; }
+    public int MediumRiskTasks { get; set; }
     public int CriticalTasks { get; set; }
     public int HighRiskTasks { get; set; }
 }
@@ -22,7 +26,7 @@ public class DashboardChartDto
 
 public class DashboardAttentionTaskDto
 {
-    public Guid Id { get; set; }
+    public int Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Priority { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;

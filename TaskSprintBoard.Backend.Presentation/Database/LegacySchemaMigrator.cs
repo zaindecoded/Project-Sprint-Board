@@ -6,7 +6,7 @@ namespace TaskSprintBoard.Backend.Presentation.Database;
 
 /// <summary>
 /// Preserves the original integer-keyed database tables under the Legacy schema, then
-/// copies their data into the current EF Core schema using GUID keys.
+/// copies their data into the current EF Core schema while preserving integer keys.
 /// </summary>
 public static class LegacySchemaMigrator
 {
@@ -107,58 +107,60 @@ public static class LegacySchemaMigrator
                         (
                             EntityType nvarchar(30) NOT NULL,
                             LegacyId bigint NOT NULL,
-                            CurrentId uniqueidentifier NOT NULL,
-                            CONSTRAINT PK_Legacy_IdMap PRIMARY KEY (EntityType, LegacyId),
-                            CONSTRAINT UQ_Legacy_IdMap_CurrentId UNIQUE (CurrentId)
+                            CurrentId int NOT NULL,
+                            CONSTRAINT PK_Legacy_IdMap PRIMARY KEY (EntityType, LegacyId)
                         );
                     END;
 
                     INSERT INTO Legacy.IdMap (EntityType, LegacyId, CurrentId)
-                    SELECT N'User', u.UserId, NEWID() FROM Legacy.Users u
+                    SELECT N'User', u.UserId, CONVERT(int, u.UserId) FROM Legacy.Users u
                     WHERE NOT EXISTS (SELECT 1 FROM Legacy.IdMap m WHERE m.EntityType=N'User' AND m.LegacyId=u.UserId);
                     INSERT INTO Legacy.IdMap (EntityType, LegacyId, CurrentId)
-                    SELECT N'Project', p.ProjectId, NEWID() FROM Legacy.Projects p
+                    SELECT N'Project', p.ProjectId, CONVERT(int, p.ProjectId) FROM Legacy.Projects p
                     WHERE NOT EXISTS (SELECT 1 FROM Legacy.IdMap m WHERE m.EntityType=N'Project' AND m.LegacyId=p.ProjectId);
                     INSERT INTO Legacy.IdMap (EntityType, LegacyId, CurrentId)
-                    SELECT N'Sprint', s.SprintId, NEWID() FROM Legacy.Sprints s
+                    SELECT N'Sprint', s.SprintId, CONVERT(int, s.SprintId) FROM Legacy.Sprints s
                     WHERE NOT EXISTS (SELECT 1 FROM Legacy.IdMap m WHERE m.EntityType=N'Sprint' AND m.LegacyId=s.SprintId);
                     INSERT INTO Legacy.IdMap (EntityType, LegacyId, CurrentId)
-                    SELECT N'Task', t.TaskId, NEWID() FROM Legacy.Tasks t
+                    SELECT N'Task', t.TaskId, CONVERT(int, t.TaskId) FROM Legacy.Tasks t
                     WHERE NOT EXISTS (SELECT 1 FROM Legacy.IdMap m WHERE m.EntityType=N'Task' AND m.LegacyId=t.TaskId);
                     INSERT INTO Legacy.IdMap (EntityType, LegacyId, CurrentId)
-                    SELECT N'Assignment', a.AssignmentId, NEWID() FROM Legacy.Assignments a
+                    SELECT N'Assignment', a.AssignmentId, CONVERT(int, a.AssignmentId) FROM Legacy.Assignments a
                     WHERE NOT EXISTS (SELECT 1 FROM Legacy.IdMap m WHERE m.EntityType=N'Assignment' AND m.LegacyId=a.AssignmentId);
                     INSERT INTO Legacy.IdMap (EntityType, LegacyId, CurrentId)
-                    SELECT N'Comment', c.CommentId, NEWID() FROM Legacy.Comments c
+                    SELECT N'Comment', c.CommentId, CONVERT(int, c.CommentId) FROM Legacy.Comments c
                     WHERE NOT EXISTS (SELECT 1 FROM Legacy.IdMap m WHERE m.EntityType=N'Comment' AND m.LegacyId=c.CommentId);
                     INSERT INTO Legacy.IdMap (EntityType, LegacyId, CurrentId)
-                    SELECT N'StatusHistory', h.StatusHistoryId, NEWID() FROM Legacy.StatusHistory h
+                    SELECT N'StatusHistory', h.StatusHistoryId, CONVERT(int, h.StatusHistoryId) FROM Legacy.StatusHistory h
                     WHERE NOT EXISTS (SELECT 1 FROM Legacy.IdMap m WHERE m.EntityType=N'StatusHistory' AND m.LegacyId=h.StatusHistoryId);
                     INSERT INTO Legacy.IdMap (EntityType, LegacyId, CurrentId)
-                    SELECT N'TaskRiskEvaluation', e.EvaluationId, NEWID() FROM Legacy.TaskRiskEvaluations e
+                    SELECT N'TaskRiskEvaluation', e.EvaluationId, CONVERT(int, e.EvaluationId) FROM Legacy.TaskRiskEvaluations e
                     WHERE NOT EXISTS (SELECT 1 FROM Legacy.IdMap m WHERE m.EntityType=N'TaskRiskEvaluation' AND m.LegacyId=e.EvaluationId);
 
+                    SET IDENTITY_INSERT dbo.Users ON;
                     INSERT INTO dbo.Users
-                        (Id, FirstName, LastName, Email, UserName, PasswordHash, Role, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy, IsActive, IsDeleted)
+                        (Id, FirstName, LastName, Email, UserName, PasswordHash, RoleId, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy, IsActive, IsDeleted)
                     SELECT um.CurrentId,
                         COALESCE(NULLIF(LEFT(LTRIM(RTRIM(u.DisplayName)), NULLIF(CHARINDEX(N' ', LTRIM(RTRIM(u.DisplayName)) + N' '), 0) - 1), N''), N'Legacy'),
                         COALESCE(NULLIF(LTRIM(RTRIM(SUBSTRING(LTRIM(RTRIM(u.DisplayName)), CHARINDEX(N' ', LTRIM(RTRIM(u.DisplayName)) + N' ') + 1, 150))), N''), N'User'),
-                        u.Email, CONCAT(N'legacy-', u.UserId), u.PasswordHash, u.Role, u.CreatedAt,
-                        COALESCE(creator.Email, N'legacy'), u.UpdatedAt, updater.Email, u.IsActive, u.IsDeleted
+                        u.Email, CONCAT(N'legacy-', u.UserId), u.PasswordHash,
+                        CASE WHEN u.Role IN (N'Admin', N'Administrator') THEN 1 WHEN u.Role IN (N'ProjectManager', N'Project Manager') THEN 2 ELSE 3 END, u.CreatedAt,
+                        creatorMap.CurrentId, u.UpdatedAt, updaterMap.CurrentId, u.IsActive, u.IsDeleted
                     FROM Legacy.Users u
                     JOIN Legacy.IdMap um ON um.EntityType=N'User' AND um.LegacyId=u.UserId
-                    LEFT JOIN Legacy.Users creator ON creator.UserId=u.CreatedBy
-                    LEFT JOIN Legacy.Users updater ON updater.UserId=u.UpdatedBy;
+                    LEFT JOIN Legacy.IdMap creatorMap ON creatorMap.EntityType=N'User' AND creatorMap.LegacyId=u.CreatedBy
+                    LEFT JOIN Legacy.IdMap updaterMap ON updaterMap.EntityType=N'User' AND updaterMap.LegacyId=u.UpdatedBy;
+                    SET IDENTITY_INSERT dbo.Users OFF;
 
                     INSERT INTO dbo.Projects
                         (Id, Name, Description, StartDate, EndDate, Status, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy, IsActive, IsDeleted)
                     SELECT pm.CurrentId, p.Name, p.Description, CAST(p.StartDate AS datetime2), CAST(p.EndDate AS datetime2),
                         CASE WHEN p.IsActive=1 AND p.IsDeleted=0 THEN N'Active' ELSE N'Inactive' END,
-                        p.CreatedAt, COALESCE(creator.Email,N'legacy'), p.UpdatedAt, updater.Email, p.IsActive, p.IsDeleted
+                        p.CreatedAt, creatorMap.CurrentId, p.UpdatedAt, updaterMap.CurrentId, p.IsActive, p.IsDeleted
                     FROM Legacy.Projects p
                     JOIN Legacy.IdMap pm ON pm.EntityType=N'Project' AND pm.LegacyId=p.ProjectId
-                    LEFT JOIN Legacy.Users creator ON creator.UserId=p.CreatedBy
-                    LEFT JOIN Legacy.Users updater ON updater.UserId=p.UpdatedBy;
+                    LEFT JOIN Legacy.IdMap creatorMap ON creatorMap.EntityType=N'User' AND creatorMap.LegacyId=p.CreatedBy
+                    LEFT JOIN Legacy.IdMap updaterMap ON updaterMap.EntityType=N'User' AND updaterMap.LegacyId=p.UpdatedBy;
 
                     INSERT INTO dbo.Sprints
                         (Id, ProjectId, Name, StartDate, EndDate, Goal, Status, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy, IsActive, IsDeleted)
@@ -166,12 +168,12 @@ public static class LegacySchemaMigrator
                         COALESCE(LEFT(s.Goal,500),N''),
                         CASE WHEN s.IsDeleted=1 OR s.IsActive=0 OR CAST(s.EndDate AS date)<CAST(GETUTCDATE() AS date) THEN N'Completed'
                              WHEN CAST(s.StartDate AS date)>CAST(GETUTCDATE() AS date) THEN N'Planned' ELSE N'Active' END,
-                        s.CreatedAt, COALESCE(creator.Email,N'legacy'), s.UpdatedAt, updater.Email, s.IsActive, s.IsDeleted
+                        s.CreatedAt, creatorMap.CurrentId, s.UpdatedAt, updaterMap.CurrentId, s.IsActive, s.IsDeleted
                     FROM Legacy.Sprints s
                     JOIN Legacy.IdMap sm ON sm.EntityType=N'Sprint' AND sm.LegacyId=s.SprintId
                     JOIN Legacy.IdMap pm ON pm.EntityType=N'Project' AND pm.LegacyId=s.ProjectId
-                    LEFT JOIN Legacy.Users creator ON creator.UserId=s.CreatedBy
-                    LEFT JOIN Legacy.Users updater ON updater.UserId=s.UpdatedBy;
+                    LEFT JOIN Legacy.IdMap creatorMap ON creatorMap.EntityType=N'User' AND creatorMap.LegacyId=s.CreatedBy
+                    LEFT JOIN Legacy.IdMap updaterMap ON updaterMap.EntityType=N'User' AND updaterMap.LegacyId=s.UpdatedBy;
 
                     INSERT INTO dbo.Tasks
                         (Id, SprintId, Title, Description, Priority, Status, EstimateHours, ProgressPercentage, StartDate, DueDate, BlockerInformation,
@@ -182,34 +184,34 @@ public static class LegacySchemaMigrator
                         COALESCE(t.EstimateHours,0), CASE WHEN t.ProgressPercent>100 THEN 100 ELSE t.ProgressPercent END,
                         t.CreatedAt, CAST(t.DueDate AS datetime2),
                         CASE WHEN t.BlockerCount>0 THEN CONCAT(N'Legacy blocker count: ',t.BlockerCount) ELSE NULL END,
-                        t.CreatedAt, COALESCE(creator.Email,N'legacy'), t.UpdatedAt, updater.Email, t.IsActive, t.IsDeleted
+                        t.CreatedAt, creatorMap.CurrentId, t.UpdatedAt, updaterMap.CurrentId, t.IsActive, t.IsDeleted
                     FROM Legacy.Tasks t
                     JOIN Legacy.IdMap tm ON tm.EntityType=N'Task' AND tm.LegacyId=t.TaskId
                     JOIN Legacy.IdMap sm ON sm.EntityType=N'Sprint' AND sm.LegacyId=t.SprintId
-                    LEFT JOIN Legacy.Users creator ON creator.UserId=t.CreatedBy
-                    LEFT JOIN Legacy.Users updater ON updater.UserId=t.UpdatedBy;
+                    LEFT JOIN Legacy.IdMap creatorMap ON creatorMap.EntityType=N'User' AND creatorMap.LegacyId=t.CreatedBy
+                    LEFT JOIN Legacy.IdMap updaterMap ON updaterMap.EntityType=N'User' AND updaterMap.LegacyId=t.UpdatedBy;
 
                     INSERT INTO dbo.Assignments
                         (Id, TaskId, UserId, AssignedAt, UnassignedAt, RoleInTask, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy, IsActive, IsDeleted)
                     SELECT am.CurrentId, tm.CurrentId, um.CurrentId, a.CreatedAt, NULL, a.AssignmentRole,
-                        a.CreatedAt, COALESCE(creator.Email,N'legacy'), a.UpdatedAt, updater.Email, a.IsActive, a.IsDeleted
+                        a.CreatedAt, creatorMap.CurrentId, a.UpdatedAt, updaterMap.CurrentId, a.IsActive, a.IsDeleted
                     FROM Legacy.Assignments a
                     JOIN Legacy.IdMap am ON am.EntityType=N'Assignment' AND am.LegacyId=a.AssignmentId
                     JOIN Legacy.IdMap tm ON tm.EntityType=N'Task' AND tm.LegacyId=a.TaskId
                     JOIN Legacy.IdMap um ON um.EntityType=N'User' AND um.LegacyId=a.UserId
-                    LEFT JOIN Legacy.Users creator ON creator.UserId=a.CreatedBy
-                    LEFT JOIN Legacy.Users updater ON updater.UserId=a.UpdatedBy;
+                    LEFT JOIN Legacy.IdMap creatorMap ON creatorMap.EntityType=N'User' AND creatorMap.LegacyId=a.CreatedBy
+                    LEFT JOIN Legacy.IdMap updaterMap ON updaterMap.EntityType=N'User' AND updaterMap.LegacyId=a.UpdatedBy;
 
                     INSERT INTO dbo.Comments
                         (Id, TaskId, UserId, Message, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy, IsActive, IsDeleted)
                     SELECT cm.CurrentId, tm.CurrentId, um.CurrentId, c.Content, c.CreatedAt,
-                        COALESCE(creator.Email,N'legacy'), c.UpdatedAt, updater.Email, c.IsActive, c.IsDeleted
+                        creatorMap.CurrentId, c.UpdatedAt, updaterMap.CurrentId, c.IsActive, c.IsDeleted
                     FROM Legacy.Comments c
                     JOIN Legacy.IdMap cm ON cm.EntityType=N'Comment' AND cm.LegacyId=c.CommentId
                     JOIN Legacy.IdMap tm ON tm.EntityType=N'Task' AND tm.LegacyId=c.TaskId
                     JOIN Legacy.IdMap um ON um.EntityType=N'User' AND um.LegacyId=c.UserId
-                    LEFT JOIN Legacy.Users creator ON creator.UserId=c.CreatedBy
-                    LEFT JOIN Legacy.Users updater ON updater.UserId=c.UpdatedBy;
+                    LEFT JOIN Legacy.IdMap creatorMap ON creatorMap.EntityType=N'User' AND creatorMap.LegacyId=c.CreatedBy
+                    LEFT JOIN Legacy.IdMap updaterMap ON updaterMap.EntityType=N'User' AND updaterMap.LegacyId=c.UpdatedBy;
 
                     INSERT INTO dbo.StatusHistory
                         (Id, TaskId, OldStatus, NewStatus, ChangedBy, ChangedAt, Reason, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy, IsActive, IsDeleted)
@@ -219,13 +221,13 @@ public static class LegacySchemaMigrator
                         CASE LTRIM(RTRIM(h.NewStatus)) WHEN N'To Do' THEN N'Todo' WHEN N'Backlog' THEN N'Todo'
                              WHEN N'In Progress' THEN N'InProgress' ELSE h.NewStatus END,
                         COALESCE(changedBy.Email,N'legacy'), h.ChangedAt, NULL, h.CreatedAt,
-                        COALESCE(creator.Email,N'legacy'), h.UpdatedAt, updater.Email, h.IsActive, h.IsDeleted
+                        creatorMap.CurrentId, h.UpdatedAt, updaterMap.CurrentId, h.IsActive, h.IsDeleted
                     FROM Legacy.StatusHistory h
                     JOIN Legacy.IdMap hm ON hm.EntityType=N'StatusHistory' AND hm.LegacyId=h.StatusHistoryId
                     JOIN Legacy.IdMap tm ON tm.EntityType=N'Task' AND tm.LegacyId=h.TaskId
                     JOIN Legacy.Users changedBy ON changedBy.UserId=h.ChangedByUserId
-                    LEFT JOIN Legacy.Users creator ON creator.UserId=h.CreatedBy
-                    LEFT JOIN Legacy.Users updater ON updater.UserId=h.UpdatedBy;
+                    LEFT JOIN Legacy.IdMap creatorMap ON creatorMap.EntityType=N'User' AND creatorMap.LegacyId=h.CreatedBy
+                    LEFT JOIN Legacy.IdMap updaterMap ON updaterMap.EntityType=N'User' AND updaterMap.LegacyId=h.UpdatedBy;
 
                     INSERT INTO dbo.TaskRiskEvaluations
                         (Id, TaskId, EstimateHours, TaskAge, DaysRemaining, ProgressPercentage, IsBlocked, Priority, CurrentStatus,
@@ -240,15 +242,23 @@ public static class LegacySchemaMigrator
                              WHEN N'In Progress' THEN N'InProgress' ELSE t.Status END,
                         (SELECT COUNT(*) FROM Legacy.StatusHistory h WHERE h.TaskId=e.TaskId), e.RiskScore, e.RiskLevel, e.Confidence,
                         LEFT(e.FactorsJson,2000), e.Explanation, e.CreatedAt, evaluator.Email,
-                        e.IsConfirmed, e.OverrideNote, e.CreatedAt, COALESCE(creator.Email,N'legacy'), e.CreatedAt, creator.Email, 1, 0
+                        e.IsConfirmed, e.OverrideNote, e.CreatedAt, creatorMap.CurrentId, e.CreatedAt, creatorMap.CurrentId, 1, 0
                     FROM Legacy.TaskRiskEvaluations e
                     JOIN Legacy.IdMap em ON em.EntityType=N'TaskRiskEvaluation' AND em.LegacyId=e.EvaluationId
                     JOIN Legacy.IdMap tm ON tm.EntityType=N'Task' AND tm.LegacyId=e.TaskId
                     JOIN Legacy.Tasks t ON t.TaskId=e.TaskId
                     LEFT JOIN Legacy.Users evaluator ON evaluator.UserId=e.UserId
-                    LEFT JOIN Legacy.Users creator ON creator.UserId=e.UserId;
+                    LEFT JOIN Legacy.IdMap creatorMap ON creatorMap.EntityType=N'User' AND creatorMap.LegacyId=e.UserId;
 
                     INSERT INTO Legacy.MigrationRuns (MigrationName, AppliedAt) VALUES (@migrationName, SYSUTCDATETIME());
+                    DECLARE @nextId int, @sequenceSql nvarchar(100);
+                    SELECT @nextId = ISNULL(MAX(Id), 0) + 1 FROM dbo.Projects; SET @sequenceSql = N'ALTER SEQUENCE dbo.ProjectIds RESTART WITH ' + CONVERT(nvarchar(20), @nextId); EXEC sys.sp_executesql @sequenceSql;
+                    SELECT @nextId = ISNULL(MAX(Id), 0) + 1 FROM dbo.Sprints; SET @sequenceSql = N'ALTER SEQUENCE dbo.SprintIds RESTART WITH ' + CONVERT(nvarchar(20), @nextId); EXEC sys.sp_executesql @sequenceSql;
+                    SELECT @nextId = ISNULL(MAX(Id), 0) + 1 FROM dbo.Tasks; SET @sequenceSql = N'ALTER SEQUENCE dbo.TaskIds RESTART WITH ' + CONVERT(nvarchar(20), @nextId); EXEC sys.sp_executesql @sequenceSql;
+                    SELECT @nextId = ISNULL(MAX(Id), 0) + 1 FROM dbo.Assignments; SET @sequenceSql = N'ALTER SEQUENCE dbo.AssignmentIds RESTART WITH ' + CONVERT(nvarchar(20), @nextId); EXEC sys.sp_executesql @sequenceSql;
+                    SELECT @nextId = ISNULL(MAX(Id), 0) + 1 FROM dbo.Comments; SET @sequenceSql = N'ALTER SEQUENCE dbo.CommentIds RESTART WITH ' + CONVERT(nvarchar(20), @nextId); EXEC sys.sp_executesql @sequenceSql;
+                    SELECT @nextId = ISNULL(MAX(Id), 0) + 1 FROM dbo.StatusHistory; SET @sequenceSql = N'ALTER SEQUENCE dbo.StatusHistoryIds RESTART WITH ' + CONVERT(nvarchar(20), @nextId); EXEC sys.sp_executesql @sequenceSql;
+                    SELECT @nextId = ISNULL(MAX(Id), 0) + 1 FROM dbo.TaskRiskEvaluations; SET @sequenceSql = N'ALTER SEQUENCE dbo.TaskRiskEvaluationIds RESTART WITH ' + CONVERT(nvarchar(20), @nextId); EXEC sys.sp_executesql @sequenceSql;
                     COMMIT TRANSACTION;
                 END TRY
                 BEGIN CATCH

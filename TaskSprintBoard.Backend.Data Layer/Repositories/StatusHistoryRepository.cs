@@ -11,7 +11,7 @@ public class StatusHistoryRepository : GenericRepository<StatusHistory>
     }
 
     public async Task<IEnumerable<StatusHistory>> SearchAsync(
-        Guid? taskId,
+        int? taskId,
         string? oldStatus,
         string? newStatus,
         int skip,
@@ -35,7 +35,7 @@ public class StatusHistoryRepository : GenericRepository<StatusHistory>
         return await query.OrderByDescending(x => x.ChangedAt).Skip(skip).Take(take).ToListAsync();
     }
 
-    public async Task<int> CountAsync(Guid? taskId, string? oldStatus, string? newStatus)
+    public async Task<int> CountAsync(int? taskId, string? oldStatus, string? newStatus)
     {
         var query = DbSet.AsNoTracking().Where(x => !x.IsDeleted).AsQueryable();
 
@@ -51,7 +51,7 @@ public class StatusHistoryRepository : GenericRepository<StatusHistory>
         return await query.CountAsync();
     }
 
-    public async Task<IEnumerable<StatusHistory>> GetByTaskIdAsync(Guid taskId)
+    public async Task<IEnumerable<StatusHistory>> GetByTaskIdAsync(int taskId)
     {
         return await DbSet.AsNoTracking()
             .Where(x => x.TaskId == taskId && !x.IsDeleted)
@@ -59,7 +59,7 @@ public class StatusHistoryRepository : GenericRepository<StatusHistory>
             .ToListAsync();
     }
 
-    public async Task<StatusHistory?> GetByIdWithDetailsAsync(Guid id)
+    public async Task<StatusHistory?> GetByIdWithDetailsAsync(int id)
     {
         return await DbSet
             .Include(x => x.Task)

@@ -26,15 +26,15 @@ public class TasksController : ControllerBase
         [FromQuery] string search = "",
         [FromQuery] string? status = null,
         [FromQuery] string? priority = null,
-        [FromQuery] Guid? sprintId = null,
-        [FromQuery] Guid? projectId = null,
+        [FromQuery] int? sprintId = null,
+        [FromQuery] int? projectId = null,
         [FromQuery] DateTime? dueDate = null,
         [FromQuery] bool? isBlocked = null)
     {
-        Guid? assignedUserId = null;
+        int? assignedUserId = null;
         if (User.IsInRole("TeamMember"))
         {
-            if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId))
+            if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId))
                 return Forbid();
 
             assignedUserId = currentUserId;
@@ -47,8 +47,8 @@ public class TasksController : ControllerBase
         return Ok(new { items = responseItems, page, pageSize, totalCount, totalPages });
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetById(Guid id)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
     {
         var task = await _taskService.GetByIdAsync(id);
         if (task == null)
@@ -56,7 +56,7 @@ public class TasksController : ControllerBase
 
         if (User.IsInRole("TeamMember"))
         {
-            if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId)
+            if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId)
                 || !task.Assignments.Any(assignment => assignment.UserId == currentUserId && assignment.IsActive && !assignment.IsDeleted))
                 return NotFound();
         }
@@ -70,7 +70,7 @@ public class TasksController : ControllerBase
     {
         try
         {
-            var task = await _taskService.CreateTaskAsync(dto, User.Identity?.Name ?? "system");
+            var task = await _taskService.CreateTaskAsync(dto, User.GetActorUserId());
             return StatusCode(201, MapToDto(task));
         }
         catch (KeyNotFoundException)
@@ -83,13 +83,13 @@ public class TasksController : ControllerBase
         }
     }
 
-    [HttpPut("{id:guid}")]
+    [HttpPut("{id:int}")]
     [Authorize(Roles = "Admin,ProjectManager")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] TaskUpdateDto dto)
+    public async Task<IActionResult> Update(int id, [FromBody] TaskUpdateDto dto)
     {
         try
         {
-            var task = await _taskService.UpdateTaskAsync(id, dto, User.Identity?.Name ?? "system");
+            var task = await _taskService.UpdateTaskAsync(id, dto, User.GetActorUserId());
             return Ok(MapToDto(task));
         }
         catch (KeyNotFoundException)
@@ -102,13 +102,32 @@ public class TasksController : ControllerBase
         }
     }
 
-    [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "Admin,ProjectManager")]
-    public async Task<IActionResult> Delete(Guid id)
+    [HttpPatch("{id:int}/complete")]
+    [Authorize(Roles = "TeamMember")]
+    public async Task<IActionResult> CompleteAssignedTask(int id)
     {
         try
         {
-            await _taskService.DeleteTaskAsync(id, User.Identity?.Name ?? "system");
+            var task = await _taskService.CompleteAssignedTaskAsync(id, User.GetActorUserId());
+            return Ok(MapToDto(task));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message, errors = new[] { ex.Message } });
+        }
+    }
+
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin,ProjectManager")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        try
+        {
+            await _taskService.DeleteTaskAsync(id, User.GetActorUserId());
             return NoContent();
         }
         catch (KeyNotFoundException)
@@ -121,11 +140,11 @@ public class TasksController : ControllerBase
         }
     }
 
-    [HttpGet("{id:guid}/history")]
-    public async Task<IActionResult> GetHistory(Guid id)
+    [HttpGet("{id:int}/history")]
+    public async Task<IActionResult> GetHistory(int id)
     {
         if (User.IsInRole("TeamMember")
-            && (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId)
+            && (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId)
                 || !await _taskService.IsAssignedToUserAsync(id, currentUserId)))
             return NotFound();
 

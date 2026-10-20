@@ -17,32 +17,36 @@ public class DashboardService
         _taskRepository = taskRepository;
     }
 
-    public async Task<DashboardSummaryDto> GetSummaryAsync()
+    public async Task<DashboardSummaryDto> GetSummaryAsync(int? assignedUserId = null)
     {
         var projects = (await _projectRepository.GetAllAsync()).Where(x => !x.IsDeleted).ToList();
         var sprints = (await _sprintRepository.GetAllAsync()).Where(x => !x.IsDeleted).ToList();
-        var tasks = (await _taskRepository.GetAllWithRiskEvaluationsAsync()).ToList();
+        var tasks = (await _taskRepository.GetAllWithRiskEvaluationsAsync(assignedUserId)).ToList();
 
         var now = DateTime.UtcNow;
 
         return new DashboardSummaryDto
         {
-            TotalProjects = projects.Count,
-            CompletedProjects = projects.Count(x => string.Equals(x.Status, "Completed", StringComparison.OrdinalIgnoreCase)),
-            ActiveProjects = projects.Count(x => x.IsActive && x.Status == "Active"),
-            ActiveSprints = sprints.Count(x => x.IsActive && x.Status == "Active"),
+            TotalProjects = assignedUserId.HasValue ? 0 : projects.Count,
+            CompletedProjects = assignedUserId.HasValue ? 0 : projects.Count(x => string.Equals(x.Status, "Completed", StringComparison.OrdinalIgnoreCase)),
+            ActiveProjects = assignedUserId.HasValue ? 0 : projects.Count(x => x.IsActive && x.Status == "Active"),
+            ActiveSprints = assignedUserId.HasValue ? 0 : sprints.Count(x => x.IsActive && x.Status == "Active"),
             TotalTasks = tasks.Count,
-            CompletedTasks = tasks.Count(x => x.Status == "Done"),
+            TodoTasks = CountStatus(tasks, "Todo"),
+            InProgressTasks = CountStatus(tasks, "InProgress"),
+            CompletedTasks = CountStatus(tasks, "Done"),
             OverdueTasks = tasks.Count(x => x.DueDate.HasValue && x.DueDate.Value < now && x.Status != "Done"),
-            BlockedTasks = tasks.Count(x => x.Status == "Blocked"),
+            BlockedTasks = CountStatus(tasks, "Blocked"),
+            LowRiskTasks = tasks.Count(task => IsOpen(task) && LatestRisk(task)?.RiskLevel == "Low"),
+            MediumRiskTasks = tasks.Count(task => IsOpen(task) && LatestRisk(task)?.RiskLevel == "Medium"),
             CriticalTasks = tasks.Count(task => IsOpen(task) && task.Priority == "Critical"),
             HighRiskTasks = tasks.Count(task => IsOpen(task) && LatestRisk(task)?.RiskLevel == "High")
         };
     }
 
-    public async Task<IReadOnlyList<DashboardAttentionTaskDto>> GetAttentionTasksAsync()
+    public async Task<IReadOnlyList<DashboardAttentionTaskDto>> GetAttentionTasksAsync(int? assignedUserId = null)
     {
-        var tasks = await _taskRepository.GetAllWithRiskEvaluationsAsync();
+        var tasks = await _taskRepository.GetAllWithRiskEvaluationsAsync(assignedUserId);
         var now = DateTime.UtcNow;
 
         return tasks
@@ -74,6 +78,12 @@ public class DashboardService
             .Where(evaluation => !evaluation.IsDeleted)
             .OrderByDescending(evaluation => evaluation.EvaluatedAt)
             .FirstOrDefault();
+    }
+
+    private static int CountStatus(IEnumerable<TaskItem> tasks, string status)
+    {
+        static string Normalize(string? value) => new string((value ?? string.Empty).Where(character => !char.IsWhiteSpace(character)).ToArray());
+        return tasks.Count(task => string.Equals(Normalize(task.Status), status, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsOpen(TaskItem task)

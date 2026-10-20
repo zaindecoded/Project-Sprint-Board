@@ -1,0 +1,24 @@
+.audit-page { width: min(100%, 1440px); margin: 0 auto; padding: 28px; }
+.audit-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+.audit-heading .muted-text { margin: 8px 0 0; }
+.audit-total { display: grid; min-width: 112px; padding: 14px 20px; border: 1px solid #dce4f0; border-radius: 12px; background: #fff; text-align: center; }
+.audit-total strong { color: #211f35; font-size: 24px; line-height: 1.1; }
+.audit-total span { color: #77748a; font-size: 13px; }
+.audit-filters { display: grid; grid-template-columns: minmax(260px, 2fr) repeat(2, minmax(160px, 1fr)); align-items: end; gap: 16px; margin-bottom: 18px; padding: 18px; border: 1px solid #dce4f0; border-radius: 12px; background: #fff; }
+.audit-filters label { display: grid; gap: 7px; color: #444157; font-size: 13px; font-weight: 650; }
+.audit-filters input, .audit-filters select { width: 100%; min-height: 42px; padding: 8px 12px; border: 1px solid #d8d2e5; border-radius: 8px; background: #fff; color: #211f35; font: inherit; font-weight: 400; }
+.audit-table-wrap { overflow-x: auto; border: 1px solid #dce4f0; border-radius: 12px; background: #fff; }
+.audit-table { width: 100%; min-width: 900px; border-collapse: collapse; }
+.audit-table th, .audit-table td { padding: 14px 16px; border-bottom: 1px solid #edf0f5; text-align: left; vertical-align: top; }
+.audit-table th { background: #f8f9fc; color: #475467; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.audit-table td { color: #444157; font-size: 14px; }
+.audit-table small { display: block; margin-top: 3px; color: #77748a; font-size: 12px; }
+.audit-time { min-width: 190px; white-space: nowrap; }
+.audit-action { display: inline-block; padding: 3px 9px; border-radius: 99px; background: #f0ebfa; color: #6850a4; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.audit-details { max-width: 480px; max-height: 150px; overflow: auto; margin: 0; color: #475467; font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.audit-state { height: 120px; color: #77748a !important; text-align: center !important; vertical-align: middle !important; }
+.audit-pagination { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 4px; color: #77748a; font-size: 13px; }
+.audit-pagination div { display: flex; align-items: center; gap: 12px; }
+.audit-pagination button { padding: 8px 12px; border: 1px solid #d0d5dd; border-radius: 8px; background: #fff; color: #444157; font: inherit; cursor: pointer; }
+.audit-pagination button:disabled { cursor: not-allowed; opacity: .5; }
+@media (max-width: 760px) { .audit-page { padding: 20px 14px; } .audit-filters { grid-template-columns: 1fr; } .audit-heading { align-items: flex-start; } .audit-total { min-width: 82px; padding: 10px; } .audit-pagination { align-items: flex-start; flex-direction: column; } }
