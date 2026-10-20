@@ -33,6 +33,7 @@ export function AuthProvider({ children }) {
       name: data.name ?? tokenUser?.name ?? '',
       email: data.email ?? tokenUser?.email ?? credentials.email,
       role: data.role ?? tokenUser?.role ?? '',
+      roleId: data.roleId ?? tokenUser?.roleId ?? 0,
       expiresAt: data.expiresAt ? new Date(data.expiresAt).getTime() : tokenUser?.expiresAt ?? null
     };
 

@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react';
+import { Bar, Doughnut } from 'react-chartjs-2';
+import { ArcElement, BarElement, CategoryScale, Chart as ChartJS, DoughnutController, Legend, LinearScale, Tooltip } from 'chart.js';
 import ErrorMessage from '../../components/ErrorMessage';
+import { useAuth } from '../../context/AuthContext';
+import { canManageWorkspace } from '../../utils/permissions';
 import { getApiErrorMessage } from '../../services/apiErrors';
 import { getDashboardAttentionTasks, getDashboardSummary } from '../../services/dashboardApi';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, DoughnutController, ArcElement, Tooltip, Legend);
 
 function count(value) {
   const number = Number(value);
@@ -17,6 +23,8 @@ function formatDate(value) {
 }
 
 function DashboardPage() {
+  const { user } = useAuth();
+  const canManage = canManageWorkspace(user);
   const [summary, setSummary] = useState(null);
   const [attentionTasks, setAttentionTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,6 +56,45 @@ function DashboardPage() {
   const totalTasks = count(summary?.totalTasks);
   const completedTasks = count(summary?.completedTasks);
   const completion = totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  const taskStatusChart = {
+    labels: ['To Do', 'In Progress', 'Completed', 'Blocked'],
+    datasets: [{
+      data: [count(summary?.todoTasks), count(summary?.inProgressTasks), completedTasks, count(summary?.blockedTasks)],
+      backgroundColor: ['#8aa3c7', '#4e7dd2', '#43a879', '#df8a62'],
+      borderRadius: 6,
+      maxBarThickness: 64
+    }]
+  };
+  const riskCounts = {
+    low: count(summary?.lowRiskTasks),
+    medium: count(summary?.mediumRiskTasks),
+    high: count(summary?.highRiskTasks)
+  };
+  const riskChart = {
+    labels: [`Low (${riskCounts.low})`, `Medium (${riskCounts.medium})`, `High (${riskCounts.high})`],
+    datasets: [{
+      data: [riskCounts.low, riskCounts.medium, riskCounts.high],
+      backgroundColor: ['#43a879', '#e8ad45', '#df6b62'],
+      borderColor: '#fff',
+      borderWidth: 3
+    }]
+  };
+  const riskChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    layout: { padding: 4 },
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, boxHeight: 12, padding: 12, font: { size: 11 } } } }
+  };
+  const taskStatusChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    layout: { padding: { top: 4, right: 6, bottom: 0, left: 0 } },
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { font: { size: 11 }, maxRotation: 0, minRotation: 0 } },
+      y: { beginAtZero: true, ticks: { precision: 0, font: { size: 10 } } }
+    }
+  };
   const overview = [
     { label: 'Projects', value: count(summary?.totalProjects) },
     { label: 'Completed projects', value: count(summary?.completedProjects) },
@@ -56,7 +103,7 @@ function DashboardPage() {
     { label: 'Completed tasks', value: completedTasks },
     { label: 'Overdue', value: count(summary?.overdueTasks) },
     { label: 'Blocked', value: count(summary?.blockedTasks) }
-  ];
+  ].filter((item) => user?.role !== 'TeamMember' || !['Projects', 'Completed projects', 'Active sprints'].includes(item.label));
 
   return (
     <section className="dashboard-page simple-dashboard">
@@ -95,10 +142,27 @@ function DashboardPage() {
             <p>{completedTasks} of {totalTasks} {totalTasks === 1 ? 'task' : 'tasks'} completed</p>
           </section>
 
+          {canManage && (
+            <section className="dashboard-charts-grid" aria-label="Task and risk charts">
+              <article className="dashboard-panel dashboard-chart-panel" aria-labelledby="task-status-chart-title">
+                <div className="dashboard-panel-heading"><h2 id="task-status-chart-title">Tasks by status</h2></div>
+                <div className="dashboard-status-chart">
+                  <Bar data={taskStatusChart} options={taskStatusChartOptions} aria-label="Bar chart comparing To Do, In Progress, Completed, and Blocked tasks" role="img" />
+                </div>
+              </article>
+              <article className="dashboard-panel dashboard-chart-panel" aria-labelledby="risk-distribution-title">
+                <div className="dashboard-panel-heading"><h2 id="risk-distribution-title">Risk distribution</h2></div>
+                <div className="dashboard-status-chart">
+                  <Doughnut data={riskChart} options={riskChartOptions} aria-label={`Risk distribution: Low ${riskCounts.low}, Medium ${riskCounts.medium}, High ${riskCounts.high}`} role="img" />
+                </div>
+              </article>
+            </section>
+          )}
+
           <section className="dashboard-panel dashboard-attention-tasks-panel" aria-labelledby="attention-tasks-title">
             <div className="dashboard-panel-heading">
               <div>
-                <h2 id="attention-tasks-title">Tasks needing attention</h2>
+                <h2 id="attention-tasks-title">Attention Required</h2>
               </div>
               {!attentionLoading && !attentionError && <span className="dashboard-total-pill">{attentionTasks.length}</span>}
             </div>
@@ -125,7 +189,7 @@ function DashboardPage() {
                 ))}
               </ul>
             ) : (
-              <div className="dashboard-inline-state">No critical or high-risk open tasks.</div>
+              <div className="dashboard-inline-state">No tasks needing attention.</div>
             )}
           </section>
         </>

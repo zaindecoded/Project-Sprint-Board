@@ -38,7 +38,7 @@ function userLabel(userId, currentUser, users = []) {
   }
   const user = users.find((item) => item.id === userId);
   if (user) return `${user.firstName} ${user.lastName}`.trim();
-  return userId ? `User · ${String(userId).slice(0, 8)}` : 'Unknown user';
+  return userId ? `User · ${userId}` : 'Unknown user';
 }
 
 function getValidationMessage(error, fallback = 'Unable to save this comment.') {
@@ -69,13 +69,13 @@ function TaskSelector({ id, value, initialTask, onChange, disabled }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (initialTask?.id === value) {
+    if (String(initialTask?.id) === String(value)) {
       setSelectedTask(initialTask);
     }
   }, [initialTask, value]);
 
   useEffect(() => {
-    if (!value || selectedTask?.id === value) {
+    if (!value || String(selectedTask?.id) === String(value)) {
       return undefined;
     }
     let active = true;
@@ -123,7 +123,7 @@ function TaskSelector({ id, value, initialTask, onChange, disabled }) {
     };
   }, [search]);
 
-  const availableTasks = selectedTask?.id === value && !tasks.some((task) => task.id === value)
+  const availableTasks = String(selectedTask?.id) === String(value) && !tasks.some((task) => String(task.id) === String(value))
     ? [selectedTask, ...tasks]
     : tasks;
 
@@ -143,9 +143,9 @@ function TaskSelector({ id, value, initialTask, onChange, disabled }) {
         id={id}
         value={value}
         onChange={(event) => {
-          const task = availableTasks.find((item) => item.id === event.target.value) ?? null;
+          const task = availableTasks.find((item) => String(item.id) === event.target.value) ?? null;
           setSelectedTask(task);
-          onChange(event.target.value, task);
+          onChange(event.target.value ? Number(event.target.value) : '', task);
         }}
         required
         disabled={disabled || loading}
@@ -159,20 +159,19 @@ function TaskSelector({ id, value, initialTask, onChange, disabled }) {
 }
 
 function TaskFilter({ value, initialTask, onChange }) {
-  const [search, setSearch] = useState('');
   const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(initialTask ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (initialTask?.id === value) {
+    if (String(initialTask?.id) === String(value)) {
       setSelectedTask(initialTask);
     }
   }, [initialTask, value]);
 
   useEffect(() => {
-    if (!value || selectedTask?.id === value) {
+    if (!value || String(selectedTask?.id) === String(value)) {
       return undefined;
     }
     let active = true;
@@ -194,53 +193,40 @@ function TaskFilter({ value, initialTask, onChange }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      setLoading(true);
-      setError('');
-      getTasks({ page: 1, pageSize: 50, search: search.trim(), signal: controller.signal })
-        .then((result) => {
-          if (!controller.signal.aborted) {
-            setTasks(Array.isArray(result.items) ? result.items : []);
-          }
-        })
-        .catch((requestError) => {
-          if (!controller.signal.aborted && requestError.code !== 'ERR_CANCELED') {
-            setError(getApiErrorMessage(requestError, 'Unable to load tasks.'));
-          }
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) {
-            setLoading(false);
-          }
-        });
-    }, 250);
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [search]);
+    setLoading(true);
+    getTasks({ page: 1, pageSize: 50, signal: controller.signal })
+      .then((result) => {
+        if (!controller.signal.aborted) {
+          setTasks(Array.isArray(result.items) ? result.items : []);
+        }
+      })
+      .catch((requestError) => {
+        if (!controller.signal.aborted && requestError.code !== 'ERR_CANCELED') {
+          setError(getApiErrorMessage(requestError, 'Unable to load tasks.'));
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      });
+    return () => controller.abort();
+  }, []);
 
-  const availableTasks = selectedTask?.id === value && !tasks.some((task) => task.id === value)
+  const availableTasks = String(selectedTask?.id) === String(value) && !tasks.some((task) => String(task.id) === String(value))
     ? [selectedTask, ...tasks]
     : tasks;
 
   return (
     <label className="project-filter comment-task-filter">
       <span>Task</span>
-      <input
-        type="search"
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-        placeholder="Search tasks"
-        aria-label="Search tasks for comment filter"
-      />
       <select
         aria-label="Filter comments by task"
         value={value}
         onChange={(event) => {
-          const task = availableTasks.find((item) => item.id === event.target.value) ?? null;
+          const task = availableTasks.find((item) => String(item.id) === event.target.value) ?? null;
           setSelectedTask(task);
-          onChange(event.target.value);
+          onChange(event.target.value ? Number(event.target.value) : '');
         }}
         disabled={loading}
       >
@@ -314,7 +300,7 @@ function CommentForm({ comment, currentUser, onCancel, onSaved }) {
 
     setSaving(true);
     setError('');
-    const body = { taskId: form.taskId, userId: commentUserId || currentUser.id, message };
+    const body = { taskId: Number(form.taskId), userId: Number(commentUserId || currentUser.id), message };
     try {
       if (comment) {
         await updateComment(comment.id, body);
@@ -578,21 +564,23 @@ function CommentsPage() {
             setPage(1);
           }}
         />
-        <label className="project-filter">
-          <span>Created by</span>
-          <select
-            value={userId}
-            onChange={(event) => {
-              setUserId(event.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">All users</option>
-            {userIds.map((id) => (
-              <option key={id} value={id}>{userLabel(id, currentUser, users)}</option>
-            ))}
-          </select>
-        </label>
+        {canManage && (
+          <label className="project-filter">
+            <span>Created by</span>
+            <select
+              value={userId}
+              onChange={(event) => {
+                setUserId(event.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">All users</option>
+              {userIds.map((id) => (
+                <option key={id} value={id}>{userLabel(id, currentUser, users)}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <span className="project-count">{totalCount} {totalCount === 1 ? 'comment' : 'comments'}</span>
       </div>
 
@@ -629,7 +617,7 @@ function CommentsPage() {
                 return (
                   <tr key={comment.id}>
                     <td data-label="Task">
-                      <strong>{task?.title || `Task · ${comment.taskId.slice(0, 8)}`}</strong>
+                      <strong>{task?.title || `Task · ${comment.taskId}`}</strong>
                       <span className="task-description-cell">{task?.description || 'No description available'}</span>
                     </td>
                     <td data-label="Comment"><span className="comment-message-cell">{comment.message}</span></td>

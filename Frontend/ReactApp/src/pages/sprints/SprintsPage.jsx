@@ -71,7 +71,7 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
   const [loadingSprint, setLoadingSprint] = useState(Boolean(sprint));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const selectedProject = projects.find((project) => project.id === form.projectId);
+  const selectedProject = projects.find((project) => String(project.id) === String(form.projectId));
   const projectEndDate = selectedProject?.endDate ? dateInputValue(selectedProject.endDate) : '';
 
   useEffect(() => {
@@ -117,7 +117,7 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
 
   function changeField(event) {
     const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
+    setForm((current) => ({ ...current, [name]: name === 'projectId' ? (value ? Number(value) : '') : value }));
     setError('');
   }
 
@@ -149,7 +149,7 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
     setSaving(true);
     setError('');
     const body = {
-      projectId: form.projectId,
+      projectId: Number(form.projectId),
       name: form.name.trim(),
       startDate: form.startDate,
       endDate: form.endDate,
@@ -434,8 +434,8 @@ function SprintsPage() {
             type="search"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search by sprint name or goal"
-            aria-label="Search sprints by name or goal"
+            placeholder="Search by sprint name"
+            aria-label="Search sprints by name"
           />
         </label>
         <label className="project-filter">

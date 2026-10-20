@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import ErrorMessage from '../components/ErrorMessage';
 import { getApiErrorMessage } from '../services/apiErrors';
-import { createUser, deleteUser, getUsers } from '../services/userApi';
+import { activateUser, createUser, deleteUser, getUsers } from '../services/userApi';
+import { useAuth } from '../context/AuthContext';
 
 const EMPTY_FORM = {
   firstName: '',
@@ -12,7 +13,7 @@ const EMPTY_FORM = {
   role: 'TeamMember'
 };
 
-function getValidationMessage(error) {
+function getValidationMessage(error, fallback = 'Unable to create this user.') {
   const errors = error.response?.data?.errors;
   if (Array.isArray(errors)) {
     const messages = errors.filter((item) => typeof item === 'string');
@@ -29,7 +30,7 @@ function getValidationMessage(error) {
   if (typeof error.response?.data?.message === 'string') {
     return error.response.data.message;
   }
-  return getApiErrorMessage(error, 'Unable to create this user.');
+  return getApiErrorMessage(error, fallback);
 }
 
 function UsersPage() {
@@ -40,11 +41,12 @@ function UsersPage() {
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [deactivatingUserId, setDeactivatingUserId] = useState('');
+  const { user: currentUser } = useAuth();
 
   const loadUsers = useCallback(async () => {
     setLoadingUsers(true);
     try {
-      const items = await getUsers();
+      const items = await getUsers({ includeInactive: true });
       setUsers(Array.isArray(items) ? items : []);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'Unable to load users.'));
@@ -89,17 +91,21 @@ function UsersPage() {
     }
   }
 
-  async function removeUser(user) {
-    if (!window.confirm(`Soft delete ${user.firstName} ${user.lastName}? They will no longer be able to sign in.`)) return;
+  async function changeUserStatus(user, activate) {
+    const verb = activate ? 'Reactivate' : 'Deactivate';
+    if (!window.confirm(`${verb} ${user.firstName} ${user.lastName}?`)) return;
     setDeactivatingUserId(user.id);
     setError('');
     setNotice('');
     try {
-      await deleteUser(user.id);
-      setNotice(`${user.firstName} ${user.lastName} was soft deleted.`);
-      await loadUsers();
+      if (activate) await activateUser(user.id);
+      else await deleteUser(user.id);
+      setUsers((current) => current.map((item) => (
+        item.id === user.id ? { ...item, isActive: activate } : item
+      )));
+      setNotice(`${user.firstName} ${user.lastName} was ${activate ? 'activated' : 'deactivated'}.`);
     } catch (requestError) {
-      setError(getValidationMessage(requestError));
+      setError(getValidationMessage(requestError, 'Unable to update this account.'));
     } finally {
       setDeactivatingUserId('');
     }
@@ -179,9 +185,18 @@ function UsersPage() {
                       {user.role === 'ProjectManager' ? 'Project Manager' : user.role === 'TeamMember' ? 'Team Member' : user.role}
                     </td>
                     <td data-label="Actions">
-                      <button className="button button-danger" type="button" onClick={() => removeUser(user)} disabled={Boolean(deactivatingUserId)}>
-                        Deactivate
-                      </button>
+                      {user.role === 'Admin' && String(user.id) !== String(currentUser?.id) ? (
+                        null
+                      ) : (
+                        <button
+                          className={`button ${user.isActive ? 'button-danger' : 'button-primary'}`}
+                          type="button"
+                          onClick={() => changeUserStatus(user, !user.isActive)}
+                          disabled={Boolean(deactivatingUserId)}
+                        >
+                          {deactivatingUserId === user.id ? 'Saving…' : user.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

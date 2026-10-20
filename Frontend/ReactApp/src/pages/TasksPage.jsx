@@ -299,8 +299,8 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
   const [loadingTask, setLoadingTask] = useState(Boolean(task));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const selectedSprint = sprints.find((item) => item.id === form.sprintId)
-    ?? (existingSprint?.id === form.sprintId ? existingSprint : null);
+  const selectedSprint = sprints.find((item) => String(item.id) === String(form.sprintId))
+    ?? (String(existingSprint?.id) === String(form.sprintId) ? existingSprint : null);
   const sprintEndDate = selectedSprint?.endDate ? dateInputValue(selectedSprint.endDate) : '';
 
   useEffect(() => {
@@ -382,7 +382,7 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
     setError('');
     setForm((current) => ({
       ...current,
-      [name]: value,
+      [name]: name === 'projectId' || name === 'sprintId' ? (value ? Number(value) : '') : value,
       ...(name === 'projectId' ? { sprintId: '' } : {})
     }));
   }
@@ -424,7 +424,7 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
     setSaving(true);
     setError('');
     const body = {
-      sprintId: form.sprintId,
+      sprintId: Number(form.sprintId),
       title: form.title.trim(),
       description: form.description.trim(),
       priority: form.priority,
@@ -787,7 +787,7 @@ function TasksPage() {
         />
       )}
 
-      <div className="projects-toolbar task-toolbar">
+      <div className="projects-toolbar task-toolbar tasks-toolbar">
         <label className="project-search">
           <span>Search tasks</span>
           <input
