@@ -60,7 +60,7 @@ function DashboardPage() {
     labels: ['To Do', 'In Progress', 'Completed', 'Blocked'],
     datasets: [{
       data: [count(summary?.todoTasks), count(summary?.inProgressTasks), completedTasks, count(summary?.blockedTasks)],
-      backgroundColor: ['#8aa3c7', '#4e7dd2', '#43a879', '#df8a62'],
+      backgroundColor: ['#245457', '#238b83', '#27b975', '#e05634'],
       borderRadius: 6,
       maxBarThickness: 64
     }]

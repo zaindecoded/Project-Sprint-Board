@@ -35,10 +35,9 @@ function LoginPage() {
   return (
     <main className="login-page">
       <section className="login-card">
-        <div className="brand-mark" aria-hidden="true">TS</div>
-        <p className="eyebrow">TaskSprintBoard</p>
+        
         <h1>Welcome back</h1>
-        <p className="muted-text">Sign in to continue to your workspace.</p>
+        <h3 className="muted-text">Have a great day!</h3>
 
         <ErrorMessage>{error}</ErrorMessage>
 
