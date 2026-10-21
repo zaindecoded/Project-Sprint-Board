@@ -16,10 +16,6 @@ Frontend/ReactApp/dist/
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
-backend.log*
-frontend.log*
-frontend-error.log*
-backend-error.log*
 
 # IDE files
 .vs/
