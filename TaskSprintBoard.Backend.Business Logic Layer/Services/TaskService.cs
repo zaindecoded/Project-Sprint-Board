@@ -128,7 +128,7 @@ public class TaskService
             newStatus = Enum.Parse<BusinessLogic.Enums.TaskStatus>(newStatus, true).ToString();
         }
 
-        if (!string.IsNullOrWhiteSpace(dto.Status) && !IsValidTransition(oldStatus, newStatus))
+        if (!string.IsNullOrWhiteSpace(dto.Status) && !TaskValidator.IsValidTransition(oldStatus, newStatus))
             throw new InvalidOperationException($"Invalid status transition from {oldStatus} to {newStatus}.");
 
         if (dto.SprintId.HasValue && dto.SprintId.Value != task.SprintId)
@@ -246,35 +246,4 @@ public class TaskService
         return _taskRepository.IsAssignedToUserAsync(taskId, userId);
     }
 
-    private static bool IsValidTransition(string oldStatus, string newStatus)
-    {
-        var validTransitions = new Dictionary<string, string[]>
-        {
-            ["Todo"] = ["InProgress"],
-            ["InProgress"] = ["Blocked", "InReview", "Done"],
-            ["Blocked"] = ["InProgress"],
-            ["InReview"] = ["InProgress", "Done"],
-            ["Done"] = ["InProgress"],
-            ["Cancelled"] = ["InProgress"]
-        };
-
-        var normalizedOldStatus = oldStatus?.Trim();
-        var normalizedNewStatus = newStatus?.Trim();
-
-        if (string.IsNullOrWhiteSpace(normalizedOldStatus) || string.IsNullOrWhiteSpace(normalizedNewStatus))
-            return false;
-
-        if (!validTransitions.TryGetValue(normalizedOldStatus, out var allowed))
-        {
-            var enumName = Enum.GetName(typeof(TaskSprintBoard.Backend.BusinessLogic.Enums.TaskStatus), normalizedOldStatus);
-            if (enumName == null)
-                return false;
-
-            normalizedOldStatus = enumName;
-            if (!validTransitions.TryGetValue(normalizedOldStatus, out allowed))
-                return false;
-        }
-
-        return allowed.Any(item => string.Equals(item, normalizedNewStatus, StringComparison.OrdinalIgnoreCase));
-    }
 }

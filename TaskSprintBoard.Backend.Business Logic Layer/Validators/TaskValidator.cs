@@ -41,10 +41,10 @@ public static class TaskValidator
     {
         var valid = new Dictionary<string, string[]>
         {
-            [nameof(BusinessLogic.Enums.TaskStatus.Todo)] = [nameof(BusinessLogic.Enums.TaskStatus.InProgress)],
-            [nameof(BusinessLogic.Enums.TaskStatus.InProgress)] = [nameof(BusinessLogic.Enums.TaskStatus.Blocked), nameof(BusinessLogic.Enums.TaskStatus.InReview), nameof(BusinessLogic.Enums.TaskStatus.Done)],
-            [nameof(BusinessLogic.Enums.TaskStatus.Blocked)] = [nameof(BusinessLogic.Enums.TaskStatus.InProgress)],
-            [nameof(BusinessLogic.Enums.TaskStatus.InReview)] = [nameof(BusinessLogic.Enums.TaskStatus.InProgress), nameof(BusinessLogic.Enums.TaskStatus.Done)],
+            [nameof(BusinessLogic.Enums.TaskStatus.Todo)] = [nameof(BusinessLogic.Enums.TaskStatus.InProgress), nameof(BusinessLogic.Enums.TaskStatus.Cancelled)],
+            [nameof(BusinessLogic.Enums.TaskStatus.InProgress)] = [nameof(BusinessLogic.Enums.TaskStatus.Blocked), nameof(BusinessLogic.Enums.TaskStatus.InReview), nameof(BusinessLogic.Enums.TaskStatus.Done), nameof(BusinessLogic.Enums.TaskStatus.Cancelled)],
+            [nameof(BusinessLogic.Enums.TaskStatus.Blocked)] = [nameof(BusinessLogic.Enums.TaskStatus.InProgress), nameof(BusinessLogic.Enums.TaskStatus.Cancelled)],
+            [nameof(BusinessLogic.Enums.TaskStatus.InReview)] = [nameof(BusinessLogic.Enums.TaskStatus.InProgress), nameof(BusinessLogic.Enums.TaskStatus.Done), nameof(BusinessLogic.Enums.TaskStatus.Cancelled)],
             [nameof(BusinessLogic.Enums.TaskStatus.Done)] = [nameof(BusinessLogic.Enums.TaskStatus.InProgress)],
             [nameof(BusinessLogic.Enums.TaskStatus.Cancelled)] = [nameof(BusinessLogic.Enums.TaskStatus.InProgress)]
         };

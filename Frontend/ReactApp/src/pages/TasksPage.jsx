@@ -902,7 +902,7 @@ function TasksPage() {
                         >
                           {historyTask?.id === task.id ? 'Hide history' : 'View history'}
                         </button>
-                        {canManage && <button
+                        {canManage && !['done', 'cancelled'].includes(String(task.status).toLowerCase()) && <button
                           className="button button-secondary"
                           type="button"
                           aria-expanded={riskTask?.id === task.id}

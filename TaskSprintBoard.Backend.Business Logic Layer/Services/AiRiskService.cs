@@ -8,21 +8,44 @@ public class AiRiskService
 {
     private readonly TaskRiskEvaluationRepository _riskRepository;
     private readonly TaskRepository _taskRepository;
+    private readonly StatusHistoryRepository _historyRepository;
 
-    public AiRiskService(TaskRiskEvaluationRepository riskRepository, TaskRepository taskRepository)
+    public AiRiskService(
+        TaskRiskEvaluationRepository riskRepository,
+        TaskRepository taskRepository,
+        StatusHistoryRepository historyRepository)
     {
         _riskRepository = riskRepository;
         _taskRepository = taskRepository;
+        _historyRepository = historyRepository;
     }
 
     public async Task<AiRiskEvaluationResultDto> EvaluateAsync(AiRiskEvaluationInputDto dto, int evaluatedBy)
     {
-        if (dto.EstimateHours <= 0)
-            throw new InvalidOperationException("EstimateHours must be greater than zero.");
-
         var task = await _taskRepository.GetByIdAsync(dto.TaskId) ?? throw new KeyNotFoundException("Task not found.");
+        if (task.Status is "Done" or "Cancelled")
+            throw new InvalidOperationException("Completed or cancelled tasks do not have delivery risk.");
+        if (!task.DueDate.HasValue)
+            throw new InvalidOperationException("A due date is required to evaluate task risk.");
+        if (task.EstimateHours <= 0)
+            throw new InvalidOperationException("Estimate hours must be greater than zero.");
 
-        var score = CalculateRiskScore(dto);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var daysRemaining = DateOnly.FromDateTime(task.DueDate.Value).DayNumber - today.DayNumber;
+        var input = new AiRiskEvaluationInputDto
+        {
+            TaskId = task.Id,
+            EstimateHours = task.EstimateHours,
+            TaskAge = Math.Max(0, (today.DayNumber - DateOnly.FromDateTime(task.CreatedAt).DayNumber)),
+            DaysRemaining = daysRemaining,
+            ProgressPercentage = task.ProgressPercentage,
+            IsBlocked = task.Status == "Blocked",
+            Priority = task.Priority,
+            CurrentStatus = task.Status,
+            NumberOfStatusChanges = (await _historyRepository.GetByTaskIdAsync(task.Id)).Count()
+        };
+
+        var score = CalculateRiskScore(input);
         var level = score switch
         {
             >= 70 => "High",
@@ -31,27 +54,27 @@ public class AiRiskService
         };
 
         var riskFactors = new List<string>();
-        if (dto.IsBlocked) riskFactors.Add("Task is blocked");
-        if (dto.ProgressPercentage < 35) riskFactors.Add("Low progress");
-        if (dto.DaysRemaining <= 3) riskFactors.Add("Due date approaching");
-        if (dto.NumberOfStatusChanges > 2) riskFactors.Add("Multiple status changes");
-        if (dto.EstimateHours > 20) riskFactors.Add("Large remaining workload");
-        if (dto.Priority is "High" or "Critical") riskFactors.Add($"{dto.Priority} priority");
-        if (dto.CurrentStatus == "Blocked") riskFactors.Add("Task is blocked");
+        if (input.IsBlocked) riskFactors.Add("Task is blocked");
+        if (input.ProgressPercentage < 35) riskFactors.Add("Low progress");
+        if (input.DaysRemaining < 0) riskFactors.Add("Past due date");
+        else if (input.DaysRemaining <= 3) riskFactors.Add("Due date approaching");
+        if (input.NumberOfStatusChanges > 2) riskFactors.Add("Multiple status changes");
+        if (input.EstimateHours > 20) riskFactors.Add("Large remaining workload");
+        if (input.Priority is "Medium" or "High" or "Critical") riskFactors.Add($"{input.Priority} priority");
 
         var explanation = string.Join("; ", riskFactors.Count > 0 ? riskFactors : ["Healthy delivery outlook"]);
 
         var evaluation = new TaskRiskEvaluation
         {
-            TaskId = dto.TaskId,
-            EstimateHours = dto.EstimateHours,
-            TaskAge = dto.TaskAge,
-            DaysRemaining = dto.DaysRemaining,
-            ProgressPercentage = dto.ProgressPercentage,
-            IsBlocked = dto.IsBlocked,
-            Priority = dto.Priority,
-            CurrentStatus = dto.CurrentStatus,
-            NumberOfStatusChanges = dto.NumberOfStatusChanges,
+            TaskId = input.TaskId,
+            EstimateHours = input.EstimateHours,
+            TaskAge = input.TaskAge,
+            DaysRemaining = input.DaysRemaining,
+            ProgressPercentage = input.ProgressPercentage,
+            IsBlocked = input.IsBlocked,
+            Priority = input.Priority,
+            CurrentStatus = input.CurrentStatus,
+            NumberOfStatusChanges = input.NumberOfStatusChanges,
             RiskScore = score,
             RiskLevel = level,
             Confidence = score / 100m,
@@ -68,7 +91,7 @@ public class AiRiskService
 
         return new AiRiskEvaluationResultDto
         {
-            TaskId = dto.TaskId,
+            TaskId = input.TaskId,
             RiskScore = score,
             RiskLevel = level,
             Confidence = score / 100m,
@@ -84,7 +107,8 @@ public class AiRiskService
 
         if (dto.IsBlocked) score += 25m;
         if (dto.ProgressPercentage < 35) score += 20m;
-        if (dto.DaysRemaining <= 3) score += 15m;
+        if (dto.DaysRemaining < 0) score += 25m;
+        else if (dto.DaysRemaining <= 3) score += 15m;
         if (dto.NumberOfStatusChanges > 2) score += 15m;
         if (dto.EstimateHours > 20) score += 20m;
 
@@ -93,13 +117,6 @@ public class AiRiskService
             "Critical" => 15m,
             "High" => 10m,
             "Medium" => 5m,
-            _ => 0m
-        };
-
-        score += dto.CurrentStatus switch
-        {
-            "Blocked" => 10m,
-            "InProgress" => 5m,
             _ => 0m
         };
 
