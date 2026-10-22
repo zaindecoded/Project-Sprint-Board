@@ -60,7 +60,7 @@ function DashboardPage() {
     labels: ['To Do', 'In Progress', 'Completed', 'Blocked'],
     datasets: [{
       data: [count(summary?.todoTasks), count(summary?.inProgressTasks), completedTasks, count(summary?.blockedTasks)],
-      backgroundColor: ['#245457', '#238b83', '#27b975', '#e05634'],
+      backgroundColor: ['#245457', '#238b83', '#27b975', '#dd2727'],
       borderRadius: 6,
       maxBarThickness: 64
     }]
@@ -75,8 +75,8 @@ function DashboardPage() {
     datasets: [{
       data: [riskCounts.low, riskCounts.medium, riskCounts.high],
       backgroundColor: ['#43a879', '#e8ad45', '#df6b62'],
-      borderColor: '#fff',
-      borderWidth: 3
+      borderColor: '#d8ba8a',
+      borderWidth: 1
     }]
   };
   const riskChartOptions = {
