@@ -4,10 +4,6 @@ using TaskSprintBoard.Backend.Data.DbContext;
 
 namespace TaskSprintBoard.Backend.Presentation.Database;
 
-/// <summary>
-/// Preserves the original integer-keyed database tables under the Legacy schema, then
-/// copies their data into the current EF Core schema while preserving integer keys.
-/// </summary>
 public static class LegacySchemaMigrator
 {
     private const string MigrationName = "IntegerKeySchemaToGuidSchemaV1";

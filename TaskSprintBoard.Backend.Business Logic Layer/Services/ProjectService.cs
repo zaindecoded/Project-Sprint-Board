@@ -101,7 +101,7 @@ public class ProjectService
         var skip = Math.Max(0, (page - 1)) * pageSize;
         var items = await _projectRepository.SearchAsync(search, skip, pageSize);
 
-        // Calculate total count (simple approach using GetAllAsync with predicate)
+        // Calculate total count
         var allMatching = await _projectRepository.GetAllAsync(x => !x.IsDeleted &&
             (string.IsNullOrWhiteSpace(search) || x.Name.Contains(search) || (x.Description != null && x.Description.Contains(search))));
 

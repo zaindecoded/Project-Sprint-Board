@@ -130,8 +130,7 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-// Keep the configured database schema in sync before the API starts accepting requests.
-// Without this, a fresh local database has no tables and every write fails at SaveChanges.
+
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<TaskSprintBoardDbContext>();

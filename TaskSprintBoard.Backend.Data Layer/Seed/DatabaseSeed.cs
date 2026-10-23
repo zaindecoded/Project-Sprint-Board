@@ -24,8 +24,6 @@ public static class DatabaseSeed
                 context.SaveChanges();
             }
 
-            // Provide the local Development login when it does not conflict with an
-            // existing account. Preserve credentials and roles for migrated users.
             var developmentAdmin = context.Users.SingleOrDefault(user => user.Email == "alice@company.com");
             if (developmentAdmin == null)
             {

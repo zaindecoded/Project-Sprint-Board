@@ -17,13 +17,38 @@ TaskSprintBoard is a project and sprint planning app for organizing team work, t
 - **Backend:** ASP.NET Core 8 Web API, C#
 - **Data:** Entity Framework Core 8 and SQL Server
 - **Authentication:** JWT bearer tokens
-- **Tests:** xUnit
 
 The delay risk assessment uses backend rules and weighted conditions. It is advisory and does not automatically change task status.
+
+The project chat widget is available to admins and project managers. It uses local intent matching against current project, sprint, task, and assignment data; it needs no API key and sends no project data to an AI provider.
 
 ## Architecture
 
 The React app communicates with the ASP.NET Core API over HTTP. The API is organized into controllers, business logic services, and data repositories backed by Entity Framework Core.
+
+## Run locally
+
+Prerequisites: .NET 8 SDK, Node.js, and SQL Server Express (`.\\SQLEXPRESS`).
+
+1. Start the API from the repository root:
+
+   ```powershell
+   dotnet run --project TaskSprintBoard.Backend.Presentation --launch-profile http
+   ```
+
+   The API applies database migrations on startup and is available at `http://localhost:5183` (Swagger: `/swagger`). Configure `ConnectionStrings:DefaultConnection` in `appsettings.Development.json` if your SQL Server differs.
+
+2. In another terminal, start the React app:
+
+   ```powershell
+   cd Frontend/ReactApp
+   npm install
+   npm run dev
+   ```
+
+   Open `http://localhost:5173`. Vite proxies `/api` requests to the local API.
+
+The project chat widget is shown to admins and project managers. It answers questions about stored project, sprint, task, and assignment fields using local intent matching; no OpenAI key is needed. For active projects, it follows the project list display rule: projects with past end dates are shown as overdue, not active.
 
 ## Project structure
 
@@ -34,5 +59,3 @@ TaskSprintBoard.Backend.Business Logic Layer/  Services, DTOs, validators, enums
 TaskSprintBoard.Backend.Data Layer/     EF Core context, entities, repositories, migrations
 TaskSprintBoard.Tests/                  Backend tests
 Frontend/ReactApp/                      React application
-postman/                                API request collection
-```
