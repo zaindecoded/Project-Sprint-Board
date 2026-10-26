@@ -94,11 +94,6 @@ public class AssignmentRepository : GenericRepository<Assignment>
             .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
     }
 
-    public async Task<IEnumerable<Assignment>> GetByTaskIdAsync(int taskId)
-    {
-        return await DbSet.AsNoTracking().Where(x => x.TaskId == taskId && !x.IsDeleted).Include(x => x.User).ToListAsync();
-    }
-
     public async Task<bool> ExistsActiveAssignmentAsync(int taskId, int userId, int? excludeId = null)
     {
         var query = DbSet.AsNoTracking().Where(x => x.TaskId == taskId && x.UserId == userId && x.IsActive && !x.IsDeleted);

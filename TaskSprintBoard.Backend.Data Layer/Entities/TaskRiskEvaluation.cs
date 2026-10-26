@@ -20,6 +20,4 @@ public class TaskRiskEvaluation : BaseEntity
     public string Explanation { get; set; } = string.Empty;
     public DateTime EvaluatedAt { get; set; } = DateTime.UtcNow;
     public string? EvaluatedBy { get; set; }
-    public bool? UserOverride { get; set; }
-    public string? OverrideReason { get; set; }
 }

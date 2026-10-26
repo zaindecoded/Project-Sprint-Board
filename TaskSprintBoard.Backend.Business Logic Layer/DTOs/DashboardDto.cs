@@ -19,12 +19,6 @@ public class DashboardSummaryDto
     public int HighRiskTasks { get; set; }
 }
 
-public class DashboardChartDto
-{
-    public string Label { get; set; } = string.Empty;
-    public int Value { get; set; }
-}
-
 public class DashboardAttentionTaskDto
 {
     public int Id { get; set; }

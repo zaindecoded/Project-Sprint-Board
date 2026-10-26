@@ -50,7 +50,7 @@ function LoginPage() {
             autoComplete="username"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@example.com"
+            placeholder="you@company.com"
             required
             disabled={loading}
           />
