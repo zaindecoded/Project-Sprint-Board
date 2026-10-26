@@ -1,6 +1,6 @@
 import apiClient from './apiClient';
 
-export async function getAssignments({ page, pageSize, search, taskId, userId, isActive, signal }) {
+export async function getAssignments({ page, pageSize, search, taskId, userId, isActive, sortBy, signal }) {
   const { data } = await apiClient.get('/assignments', {
     params: {
       page,
@@ -8,7 +8,8 @@ export async function getAssignments({ page, pageSize, search, taskId, userId, i
       search,
       taskId: taskId || undefined,
       userId: userId || undefined,
-      isActive: isActive === '' ? undefined : isActive
+      isActive: isActive === '' ? undefined : isActive,
+      sortBy
     },
     signal
   });

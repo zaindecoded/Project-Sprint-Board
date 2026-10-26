@@ -96,16 +96,11 @@ public class ProjectService
     }
 
     // New read/search helpers used by controllers
-    public async Task<(IEnumerable<Project> Items, int TotalCount)> SearchProjectsAsync(string? search, int page, int pageSize)
+    public async Task<(IEnumerable<Project> Items, int TotalCount)> SearchProjectsAsync(string? search, string? status, string? sortBy, int page, int pageSize)
     {
         var skip = Math.Max(0, (page - 1)) * pageSize;
-        var items = await _projectRepository.SearchAsync(search, skip, pageSize);
-
-        // Calculate total count
-        var allMatching = await _projectRepository.GetAllAsync(x => !x.IsDeleted &&
-            (string.IsNullOrWhiteSpace(search) || x.Name.Contains(search) || (x.Description != null && x.Description.Contains(search))));
-
-        var total = allMatching.Count();
+        var items = await _projectRepository.SearchAsync(search, status, sortBy, skip, pageSize);
+        var total = await _projectRepository.CountSearchAsync(search, status);
         return (items, total);
     }
 

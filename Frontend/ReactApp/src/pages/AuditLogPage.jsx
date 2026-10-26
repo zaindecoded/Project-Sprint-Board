@@ -13,6 +13,15 @@ function formatTimestamp(value) {
   }).format(date);
 }
 
+function actionClass(action) {
+  const value = String(action).toLowerCase();
+  if (value.includes('login') || value.includes('logout')) return 'audit-action-auth';
+  if (value.includes('create')) return 'audit-action-created';
+  if (value.includes('delete')) return 'audit-action-deleted';
+  if (value.includes('update') || value.includes('status')) return 'audit-action-updated';
+  return 'audit-action-default';
+}
+
 function AuditLogPage() {
   const [filters, setFilters] = useState({ actions: [], entities: [] });
   const [search, setSearch] = useState('');
@@ -78,19 +87,18 @@ function AuditLogPage() {
       {error && <ErrorMessage message={error} />}
       <div className="audit-table-wrap">
         <table className="audit-table">
-          <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Entity</th><th>Details</th></tr></thead>
+          <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Entity</th></tr></thead>
           <tbody>
             {!loading && !error && result?.items?.map((item) => (
               <tr key={item.id}>
                 <td className="audit-time">{formatTimestamp(item.timestamp)}</td>
                 <td>{item.actor}{item.actorUserId ? <small>User #{item.actorUserId}</small> : null}</td>
-                <td><span className="audit-action">{item.action}</span></td>
+                <td><span className={`audit-action ${actionClass(item.action)}`}>{item.action}</span></td>
                 <td>{item.entity}{item.entityId ? <small>#{item.entityId}</small> : null}</td>
-                <td><pre className="audit-details">{item.details ? (() => { try { return JSON.stringify(JSON.parse(item.details), null, 2); } catch { return item.details; } })() : '—'}</pre></td>
               </tr>
             ))}
-            {loading && <tr><td colSpan="5" className="audit-state">Loading audit activity…</td></tr>}
-            {!loading && !error && result?.items?.length === 0 && <tr><td colSpan="5" className="audit-state">No audit events match these filters.</td></tr>}
+            {loading && <tr><td colSpan="4" className="audit-state">Loading audit activity…</td></tr>}
+            {!loading && !error && result?.items?.length === 0 && <tr><td colSpan="4" className="audit-state">No audit events match these filters.</td></tr>}
           </tbody>
         </table>
       </div>

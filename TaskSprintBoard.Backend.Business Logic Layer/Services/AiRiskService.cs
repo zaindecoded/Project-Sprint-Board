@@ -101,6 +101,21 @@ public class AiRiskService
         };
     }
 
+    public async Task<AiRiskEvaluationResultDto?> GetLatestAsync(int taskId)
+    {
+        var evaluation = await _riskRepository.GetLatestByTaskIdAsync(taskId);
+        return evaluation == null ? null : new AiRiskEvaluationResultDto
+        {
+            TaskId = evaluation.TaskId,
+            RiskScore = evaluation.RiskScore,
+            RiskLevel = evaluation.RiskLevel,
+            Confidence = evaluation.Confidence,
+            RiskFactors = evaluation.RiskFactors,
+            Explanation = evaluation.Explanation,
+            Timestamp = evaluation.EvaluatedAt
+        };
+    }
+
     private static decimal CalculateRiskScore(AiRiskEvaluationInputDto dto)
     {
         decimal score = 0m;

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Bar, Doughnut } from 'react-chartjs-2';
+import { Link } from 'react-router-dom';
 import { ArcElement, BarElement, CategoryScale, Chart as ChartJS, DoughnutController, Legend, LinearScale, Tooltip } from 'chart.js';
 import ErrorMessage from '../../components/ErrorMessage';
 import { useAuth } from '../../context/AuthContext';
@@ -20,6 +21,33 @@ function formatDate(value) {
   return Number.isNaN(date.getTime())
     ? 'No due date'
     : new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' }).format(date);
+}
+
+function getDueDate(value) {
+  if (!value) return { label: 'No due date', title: '' };
+  const [year, month, day] = String(value).slice(0, 10).split('-').map(Number);
+  const dueDate = new Date(year, month - 1, day);
+  if (Number.isNaN(dueDate.getTime())) return { label: 'No due date', title: '' };
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((dueDate - today) / 86400000);
+  const label = days < 0 ? `Overdue by ${Math.abs(days)} ${Math.abs(days) === 1 ? 'day' : 'days'}`
+    : days === 0 ? 'Due today'
+      : days === 1 ? 'Due tomorrow' : `Due in ${days} days`;
+  return { label, title: formatDate(value), overdue: days < 0, dueToday: days === 0 };
+}
+
+function getStatusLabel(status) {
+  return ({ InProgress: 'In Progress', Todo: 'To Do', Done: 'Completed', InReview: 'In Review' })[status] || status;
+}
+
+function StatCard({ icon, label, value, variant = 'default' }) {
+  return (
+    <article className={`simple-dashboard-card simple-dashboard-card-${variant}`}>
+      <span className="simple-dashboard-icon-tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d={icon} /></svg></span>
+      <span className="simple-dashboard-card-copy"><span>{label}</span><strong>{value}</strong></span>
+    </article>
+  );
 }
 
 function DashboardPage() {
@@ -60,7 +88,7 @@ function DashboardPage() {
     labels: ['To Do', 'In Progress', 'Completed', 'Blocked'],
     datasets: [{
       data: [count(summary?.todoTasks), count(summary?.inProgressTasks), completedTasks, count(summary?.blockedTasks)],
-      backgroundColor: ['#6741c8', '#ff6b6b', '#61c9a8', '#dd2727'],
+      backgroundColor: ['#94a3b8', '#3b82f6', '#16a34a', '#dc2626'],
       borderRadius: 6,
       maxBarThickness: 64
     }]
@@ -74,36 +102,57 @@ function DashboardPage() {
     labels: [`Low (${riskCounts.low})`, `Medium (${riskCounts.medium})`, `High (${riskCounts.high})`],
     datasets: [{
       data: [riskCounts.low, riskCounts.medium, riskCounts.high],
-      backgroundColor: ['#61c9a8', '#ffd166', '#df6b62'],
-      borderColor: '#eadcf2',
+      backgroundColor: ['#16a34a', '#d97706', '#dc2626'],
+      borderColor: '#ffffff',
       borderWidth: 1
     }]
+  };
+  const riskTaskTotal = riskCounts.low + riskCounts.medium + riskCounts.high;
+  const donutCenterText = {
+    id: 'donutCenterText',
+    afterDraw(chart) {
+      const { ctx, chartArea } = chart;
+      const centerX = (chartArea.left + chartArea.right) / 2;
+      const centerY = (chartArea.top + chartArea.bottom) / 2;
+      ctx.save();
+      ctx.fillStyle = '#0f172a';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '700 20px Inter, sans-serif';
+      ctx.fillText(String(riskTaskTotal), centerX, centerY - 8);
+      ctx.fillStyle = '#64748b';
+      ctx.font = '12px Inter, sans-serif';
+      ctx.fillText('tasks', centerX, centerY + 12);
+      ctx.restore();
+    }
   };
   const riskChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     layout: { padding: 4 },
-    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, boxHeight: 12, padding: 12, font: { size: 11 } } } }
+    plugins: { legend: { position: 'bottom', labels: {
+      boxWidth: 12, boxHeight: 12, padding: 12, font: { size: 12 },
+      filter: (item, chart) => chart.datasets[0].data[item.index] > 0
+    } } }
   };
   const taskStatusChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    layout: { padding: { top: 4, right: 6, bottom: 0, left: 0 } },
+    layout: { padding: { top: 18, right: 6, bottom: 0, left: 0 } },
     plugins: { legend: { display: false } },
     scales: {
-      x: { ticks: { font: { size: 11 }, maxRotation: 0, minRotation: 0 } },
-      y: { beginAtZero: true, ticks: { precision: 0, font: { size: 10 } } }
+      x: { grid: { display: false }, ticks: { font: { size: 12 }, maxRotation: 0, minRotation: 0 } },
+      y: { beginAtZero: true, grid: { color: '#e2e8f0' }, ticks: { precision: 0, font: { size: 12 } } }
     }
   };
   const overview = [
-    { label: 'Projects', value: count(summary?.totalProjects) },
-    { label: 'Completed projects', value: count(summary?.completedProjects) },
-    { label: 'Active sprints', value: count(summary?.activeSprints) },
-    { label: 'Tasks', value: totalTasks },
-    { label: 'Completed tasks', value: completedTasks },
-    { label: 'Overdue', value: count(summary?.overdueTasks) },
-    { label: 'Blocked', value: count(summary?.blockedTasks) }
-  ].filter((item) => user?.role !== 'TeamMember' || !['Projects', 'Completed projects', 'Active sprints'].includes(item.label));
+    { label: 'Projects', value: count(summary?.totalProjects), icon: 'M3 7h7l2 2h9v10H3z M3 7V5h7l2 2', variant: 'default' },
+    { label: 'Active sprints', value: count(summary?.activeSprints), icon: 'M13 2 4 14h7l-1 8 10-13h-7z', variant: 'default' },
+    { label: 'Total Tasks', value: totalTasks, icon: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01', variant: 'default' },
+    { label: 'Completed Tasks', value: completedTasks, icon: 'm5 12 4 4L19 6', variant: 'ok' },
+    { label: 'Tasks Near Deadline', value: count(summary?.nearDeadlineTasks), icon: 'M12 8v4l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18', variant: count(summary?.nearDeadlineTasks) > 0 ? 'warn' : 'default' },
+    { label: 'Blocked Tasks', value: count(summary?.blockedTasks), icon: 'M12 3 2 21h20L12 3zm0 6v5m0 3h.01', variant: count(summary?.blockedTasks) > 0 ? 'danger' : 'ok' }
+  ].filter((item) => user?.role !== 'TeamMember' || !['Projects', 'Active sprints'].includes(item.label));
 
   return (
     <section className="dashboard-page simple-dashboard">
@@ -120,12 +169,7 @@ function DashboardPage() {
       ) : (
         <>
           <section className="simple-dashboard-grid" aria-label="Workspace totals">
-            {overview.map((item) => (
-              <article className="simple-dashboard-card" key={item.label}>
-                <span>{item.label}</span>
-                <strong>{item.value}</strong>
-              </article>
-            ))}
+            {overview.map((item) => <StatCard key={item.label} {...item} />)}
           </section>
 
           <section className="dashboard-panel simple-dashboard-progress" aria-labelledby="task-progress-title">
@@ -153,7 +197,7 @@ function DashboardPage() {
               <article className="dashboard-panel dashboard-chart-panel" aria-labelledby="risk-distribution-title">
                 <div className="dashboard-panel-heading"><h2 id="risk-distribution-title">Risk distribution</h2></div>
                 <div className="dashboard-status-chart">
-                  <Doughnut data={riskChart} options={riskChartOptions} aria-label={`Risk distribution: Low ${riskCounts.low}, Medium ${riskCounts.medium}, High ${riskCounts.high}`} role="img" />
+                  <Doughnut data={riskChart} options={riskChartOptions} plugins={[donutCenterText]} aria-label={`Risk distribution: ${riskTaskTotal} tasks: Low ${riskCounts.low}, Medium ${riskCounts.medium}, High ${riskCounts.high}`} role="img" />
                 </div>
               </article>
             </section>
@@ -172,21 +216,26 @@ function DashboardPage() {
               <ErrorMessage>{attentionError}</ErrorMessage>
             ) : attentionTasks.length ? (
               <ul className="dashboard-priority-task-list">
-                {attentionTasks.map((task) => (
-                  <li className="dashboard-priority-task" key={task.id}>
+                {attentionTasks.map((task) => {
+                  const due = getDueDate(task.dueDate);
+                  return <li className="dashboard-priority-task" key={task.id}>
+                    <Link className="dashboard-priority-task-link" to={`/tasks/${task.id}`}>
                     <div className="dashboard-priority-task-main">
                       <strong>{task.title}</strong>
                       <div className="dashboard-priority-task-meta">
-                        <span>{task.status}</span>
-                        <span>Due {formatDate(task.dueDate)}</span>
+                        <span className={`dashboard-status-pill dashboard-status-${String(task.status).toLowerCase()}`}>{getStatusLabel(task.status)}</span>
+                        <span className={`dashboard-due-date${due.overdue || due.dueToday ? ' dashboard-due-urgent' : ''}`} title={due.title}>{due.label}</span>
                       </div>
                     </div>
                     <div className="dashboard-priority-task-badges">
-                      {task.priority === 'Critical' && <span className="dashboard-task-badge dashboard-badge-critical">Critical</span>}
                       {task.riskLevel === 'High' && <span className="dashboard-task-badge dashboard-badge-high-risk">High risk</span>}
+                      {task.riskLevel === 'Medium' && <span className="dashboard-task-badge dashboard-badge-medium-risk">Medium risk</span>}
+                      {task.riskLevel === 'Low' && <span className="dashboard-task-badge dashboard-badge-low-risk">Low risk</span>}
+                      {task.nearDeadline && <span className="dashboard-task-badge dashboard-badge-near-deadline">Near deadline</span>}
                     </div>
-                  </li>
-                ))}
+                    </Link>
+                  </li>;
+                })}
               </ul>
             ) : (
               <div className="dashboard-inline-state">No tasks needing attention.</div>

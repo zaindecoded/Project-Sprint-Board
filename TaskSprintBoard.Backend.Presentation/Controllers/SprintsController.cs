@@ -18,9 +18,9 @@ public class SprintsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] int? projectId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string search = "")
+    public async Task<IActionResult> GetAll([FromQuery] int? projectId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string search = "", [FromQuery] string? status = null)
     {
-        var (items, totalCount) = await _sprintService.SearchSprintsAsync(search, projectId, page, pageSize);
+        var (items, totalCount) = await _sprintService.SearchSprintsAsync(search, projectId, status, page, pageSize);
         var totalPages = (int)Math.Ceiling(totalCount / (double)Math.Max(1, pageSize));
 
         var dtoItems = items.Select(s => new SprintDto

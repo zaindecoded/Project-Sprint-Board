@@ -63,6 +63,29 @@ public class UserService
         return user;
     }
 
+    public async Task<User> UpdateUserAsync(int id, string? firstName, string? lastName, string? email, string? userName, string? role, string? password, int updatedBy)
+    {
+        var user = await GetByIdAsync(id) ?? throw new KeyNotFoundException("User not found.");
+        if (email != null && await _userRepository.GetByEmailForUpdateAsync(email, id) != null)
+            throw new InvalidOperationException("Email already exists.");
+        if (userName != null && await _userRepository.GetByUserNameForUpdateAsync(userName, id) != null)
+            throw new InvalidOperationException("Username already exists.");
+        if (firstName != null) user.FirstName = firstName;
+        if (lastName != null) user.LastName = lastName;
+        if (email != null) user.Email = email;
+        if (userName != null) user.UserName = userName;
+        if (role != null)
+        {
+            user.Role = role;
+            user.RoleId = GetRoleId(role);
+        }
+        if (!string.IsNullOrWhiteSpace(password)) user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
+        user.UpdatedAt = DateTime.UtcNow;
+        user.UpdatedBy = updatedBy;
+        await _userRepository.UpdateAsync(user);
+        return user;
+    }
+
     public async Task DeleteUserAsync(int id, int deletedBy)
     {
         var user = await GetByIdAsync(id) ?? throw new KeyNotFoundException("User not found.");

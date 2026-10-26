@@ -26,7 +26,8 @@ public class AssignmentsController : ControllerBase
         [FromQuery] string search = "",
         [FromQuery] int? taskId = null,
         [FromQuery] int? userId = null,
-        [FromQuery] bool? isActive = null)
+        [FromQuery] bool? isActive = null,
+        [FromQuery] string? sortBy = null)
     {
         if (User.IsInRole("TeamMember"))
         {
@@ -37,7 +38,7 @@ public class AssignmentsController : ControllerBase
             isActive = true;
         }
 
-        var (items, totalCount) = await _assignmentService.SearchAssignmentsAsync(search, taskId, userId, isActive, page, pageSize);
+        var (items, totalCount) = await _assignmentService.SearchAssignmentsAsync(search, taskId, userId, isActive, sortBy, page, pageSize);
         var totalPages = (int)Math.Ceiling(totalCount / (double)Math.Max(1, pageSize));
 
         var responseItems = items.Select(MapToDto);

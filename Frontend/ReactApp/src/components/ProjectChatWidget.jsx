@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import apiClient from '../services/apiClient';
 
 const suggestions = [
@@ -13,6 +13,15 @@ function ProjectChatWidget() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!open) return undefined;
+    function closeOnEscape(event) {
+      if (event.key === 'Escape') setOpen(false);
+    }
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [open]);
 
   async function ask(value = question) {
     const text = value.trim();
@@ -36,8 +45,8 @@ function ProjectChatWidget() {
       {open && (
         <section className="project-chat-window" role="dialog" aria-label="Project assistant">
           <header className="project-chat-widget-header">
-            <div><strong>How may I help you?</strong></div>
-            <button type="button" aria-label="Close project assistant" onClick={() => setOpen(false)}>×</button>
+            <div><strong>Assistant</strong></div>
+            <button type="button" aria-label="Close project assistant" onClick={() => setOpen(false)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
           </header>
           <div className="project-chat-widget-messages" aria-live="polite">
             {messages.length === 0 && (
@@ -75,10 +84,11 @@ function ProjectChatWidget() {
         className="project-chat-launcher"
         type="button"
         aria-expanded={open}
-        aria-label={open ? 'Close project assistant' : 'Open project assistant'}
+        aria-label={open ? 'Close project assistant' : 'Ask the assistant'}
+        title="Ask the assistant"
         onClick={() => setOpen((value) => !value)}
       >
-        {open ? 'Close' : 'Assistant :)'}
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H6l-3 2v-5.5a7.5 7.5 0 1 1 17-4Z"/><path d="M8 11h.01M12 11h.01M16 11h.01"/></svg>
       </button>
     </div>
   );

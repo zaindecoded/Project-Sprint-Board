@@ -10,6 +10,11 @@ export async function createUser(user) {
   return data;
 }
 
+export async function updateUser(id, user) {
+  const { data } = await apiClient.put(`/users/${id}`, user);
+  return data;
+}
+
 export async function updateUserRole(id, role) {
   const { data } = await apiClient.patch(`/users/${id}/role`, { role });
   return data;

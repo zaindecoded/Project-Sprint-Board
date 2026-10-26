@@ -1,6 +1,6 @@
 import apiClient from './apiClient';
 
-export async function getTasks({ page, pageSize, search, status, priority, projectId, sprintId, dueDate, isBlocked, signal }) {
+export async function getTasks({ page, pageSize, search, status, priority, projectId, sprintId, dueDate, dueDatePreset, isBlocked, signal }) {
   const { data } = await apiClient.get('/tasks', {
     params: {
       page,
@@ -11,6 +11,7 @@ export async function getTasks({ page, pageSize, search, status, priority, proje
       projectId: projectId || undefined,
       sprintId: sprintId || undefined,
       dueDate: dueDate || undefined,
+      dueDatePreset: dueDatePreset || undefined,
       isBlocked: isBlocked === '' ? undefined : isBlocked
     },
     signal

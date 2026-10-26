@@ -15,6 +15,7 @@ public class AssignmentRepository : GenericRepository<Assignment>
         int? taskId,
         int? userId,
         bool? isActive,
+        string? sortBy,
         int skip,
         int take)
     {
@@ -43,7 +44,17 @@ public class AssignmentRepository : GenericRepository<Assignment>
                 || x.User.Email.Contains(search));
         }
 
-        return await query.OrderBy(x => x.AssignedAt).Skip(skip).Take(take).ToListAsync();
+        query = sortBy?.ToLowerInvariant() switch
+        {
+            "task" => query.OrderBy(x => x.Task.Title),
+            "user" => query.OrderBy(x => x.User.FirstName).ThenBy(x => x.User.LastName),
+            "assignedat" => query.OrderBy(x => x.AssignedAt),
+            "-task" => query.OrderByDescending(x => x.Task.Title),
+            "-user" => query.OrderByDescending(x => x.User.FirstName).ThenByDescending(x => x.User.LastName),
+            "-assignedat" => query.OrderByDescending(x => x.AssignedAt),
+            _ => query.OrderBy(x => x.AssignedAt)
+        };
+        return await query.Skip(skip).Take(take).ToListAsync();
     }
 
     public async Task<int> CountAsync(

@@ -227,6 +227,7 @@ public class TaskService
         int? sprintId,
         int? userId,
         DateTime? dueDate,
+        string? dueDatePreset,
         bool? blocked,
         int page,
         int pageSize)
@@ -235,8 +236,8 @@ public class TaskService
         var safePageSize = Math.Max(1, pageSize);
         var skip = (safePage - 1) * safePageSize;
 
-        var items = await _taskRepository.SearchAsync(search, status, priority, projectId, sprintId, userId, dueDate, blocked, skip, safePageSize);
-        var totalCount = await _taskRepository.CountAsync(search, status, priority, projectId, sprintId, userId, dueDate, blocked);
+        var items = await _taskRepository.SearchAsync(search, status, priority, projectId, sprintId, userId, dueDate, dueDatePreset, blocked, skip, safePageSize);
+        var totalCount = await _taskRepository.CountAsync(search, status, priority, projectId, sprintId, userId, dueDate, dueDatePreset, blocked);
 
         return (items, totalCount);
     }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ErrorMessage from '../../components/ErrorMessage';
 import { useAuth } from '../../context/AuthContext';
 import { createProject, deleteProject, getProject, getProjects, updateProject } from '../../services/projectApi';
@@ -7,7 +8,7 @@ import { canManageWorkspace } from '../../utils/permissions';
 import { getProjectDisplayStatus, getTodayDateInputValue } from '../../utils/displayStatus';
 
 const PAGE_SIZE = 10;
-const EMPTY_FORM = { name: '', description: '', startDate: '', endDate: '', status: 'Active' };
+const EMPTY_FORM = { name: '', description: '', startDate: '', endDate: '', status: 'Planned' };
 
 function formatDate(value) {
   if (!value) {
@@ -18,6 +19,12 @@ function formatDate(value) {
   return Number.isNaN(date.getTime())
     ? '—'
     : new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' }).format(date);
+}
+
+function formatInlineDate(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
 }
 
 function dateInputValue(value) {
@@ -43,6 +50,16 @@ function ProjectForm({ project, onCancel, onSaved }) {
   const [loadingProject, setLoadingProject] = useState(Boolean(project));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const nameValid = Boolean(form.name.trim());
+  const datesValid = !form.startDate || !form.endDate || form.endDate >= form.startDate;
+
+  useEffect(() => {
+    function onKeyDown(event) {
+      if (event.key === 'Escape' && !saving) onCancel();
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onCancel, saving]);
 
   useEffect(() => {
     let active = true;
@@ -65,7 +82,7 @@ function ProjectForm({ project, onCancel, onSaved }) {
             description: item.description ?? '',
             startDate: dateInputValue(item.startDate),
             endDate: dateInputValue(item.endDate),
-            status: item.status || 'Active'
+            status: item.status || 'Planned'
           });
         }
       })
@@ -109,8 +126,7 @@ function ProjectForm({ project, onCancel, onSaved }) {
       }
     }
 
-    if (form.startDate && form.endDate && form.endDate < form.startDate) {
-      setError('End date must be on or after the start date.');
+    if (!nameValid || !datesValid) {
       return;
     }
 
@@ -129,7 +145,7 @@ function ProjectForm({ project, onCancel, onSaved }) {
         await updateProject(project.id, body);
         onSaved('Project updated successfully.');
       } else {
-        await createProject({ ...body, status: 'Active' });
+        await createProject(body);
         onSaved('Project created successfully.');
       }
     } catch (requestError) {
@@ -140,14 +156,15 @@ function ProjectForm({ project, onCancel, onSaved }) {
   }
 
   return (
-    <section className="project-form-card" aria-labelledby="project-form-title">
+    <div className="project-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onCancel(); }}>
+    <section className="project-modal" role="dialog" aria-modal="true" aria-labelledby="project-form-title">
       <div className="project-form-heading">
         <div>
           <p className="eyebrow">{project ? 'Project details' : 'New project'}</p>
           <h2 id="project-form-title">{project ? 'Edit project' : 'Create project'}</h2>
         </div>
-        <button className="button button-secondary" type="button" onClick={onCancel} disabled={saving}>
-          Cancel
+        <button className="project-modal-close" type="button" aria-label="Close" onClick={onCancel} disabled={saving}>
+          ×
         </button>
       </div>
 
@@ -156,18 +173,18 @@ function ProjectForm({ project, onCancel, onSaved }) {
       {loadingProject ? (
         <p className="project-loading" role="status">Loading project details…</p>
       ) : (
-        <form className="project-form" onSubmit={handleSubmit}>
+        <form className="project-form" onSubmit={handleSubmit} noValidate>
           <div className="project-field project-field-wide">
-            <label htmlFor="project-name">Project name <span aria-hidden="true">*</span></label>
+            <label htmlFor="project-name">Project name <span className="required-mark" aria-hidden="true">*</span></label>
             <input
               id="project-name"
               name="name"
               value={form.name}
               onChange={changeField}
               maxLength={200}
-              required
               disabled={saving}
             />
+            {!nameValid && <span className="project-field-error">Project name is required.</span>}
           </div>
           <div className="project-field project-field-wide">
             <label htmlFor="project-description">Description</label>
@@ -192,6 +209,7 @@ function ProjectForm({ project, onCancel, onSaved }) {
               min={!project ? getTodayDateInputValue() : undefined}
               disabled={saving}
             />
+            {!datesValid && <span className="project-field-error">End date must be on or after the start date.</span>}
           </div>
           <div className="project-field">
             <label htmlFor="project-end-date">End date</label>
@@ -216,22 +234,27 @@ function ProjectForm({ project, onCancel, onSaved }) {
             </select>
           </div>
           <div className="project-form-actions project-field-wide">
-            <button className="button button-primary" type="submit" disabled={saving}>
+            <button className="button button-secondary" type="button" onClick={onCancel} disabled={saving}>Cancel</button>
+            <button className="button button-primary" type="submit" disabled={saving || loadingProject || !nameValid || !datesValid}>
               {saving ? 'Saving…' : project ? 'Save changes' : 'Create project'}
             </button>
           </div>
         </form>
       )}
     </section>
+    </div>
   );
 }
 
 function ProjectsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const canManage = canManageWorkspace(user);
   const [projects, setProjects] = useState([]);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -241,6 +264,7 @@ function ProjectsPage() {
   const [editingProject, setEditingProject] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [projectToDelete, setProjectToDelete] = useState(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -254,7 +278,7 @@ function ProjectsPage() {
     setLoading(true);
     setListError('');
     try {
-      const result = await getProjects({ page, pageSize: PAGE_SIZE, search, signal });
+      const result = await getProjects({ page, pageSize: PAGE_SIZE, search, status, sortBy, signal });
       setProjects(Array.isArray(result.items) ? result.items : []);
       setTotalCount(Number(result.totalCount) || 0);
       setTotalPages(Number(result.totalPages) || 0);
@@ -270,7 +294,7 @@ function ProjectsPage() {
         setLoading(false);
       }
     }
-  }, [page, search]);
+  }, [page, search, status, sortBy]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -291,22 +315,19 @@ function ProjectsPage() {
   }
 
   async function handleSaved(message) {
+    await loadProjects();
     setFormOpen(false);
     setEditingProject(null);
     setNotice(message);
-    await loadProjects();
   }
 
   async function handleDelete(project) {
-    if (!window.confirm(`Delete "${project.name}"? This will remove it from the active project list.`)) {
-      return;
-    }
-
     setDeletingId(project.id);
     setListError('');
     setNotice('');
     try {
       await deleteProject(project.id);
+      setProjectToDelete(null);
       setNotice('Project deleted successfully.');
       const lastPageAfterDelete = projects.length === 1 && page > 1 ? page - 1 : page;
       if (lastPageAfterDelete !== page) {
@@ -362,7 +383,9 @@ function ProjectsPage() {
             aria-label="Search projects by name or description"
           />
         </label>
-        <span className="project-count">{totalCount} {totalCount === 1 ? 'project' : 'projects'}</span>
+        <label className="project-filter"><span>Status</span><select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}><option value="">All statuses</option><option value="Active">Active</option><option value="Completed">Completed</option><option value="Planned">Planned</option><option value="OnHold">On hold</option><option value="Cancelled">Cancelled</option></select></label>
+        <label className="project-filter"><span>Sort by</span><select value={sortBy} onChange={(event) => { setSortBy(event.target.value); setPage(1); }}><option value="newest">Newest</option><option value="name">Name A–Z</option><option value="endDate">End date</option></select></label>
+        <span className="project-count">Showing {totalCount ? (page - 1) * PAGE_SIZE + 1 : 0}-{Math.min(page * PAGE_SIZE, totalCount)} of {totalCount}</span>
       </div>
 
       <ErrorMessage>{listError}</ErrorMessage>
@@ -371,9 +394,10 @@ function ProjectsPage() {
         <div className="project-state" role="status">Loading projects…</div>
       ) : projects.length === 0 ? (
         <div className="project-state project-empty">
-          <h2>{search ? 'No matching projects' : 'No projects yet'}</h2>
-          <p>{search ? 'Try a different search.' : 'Create a project to get started.'}</p>
-          {!search && canManage && !formOpen && (
+          <h2>{search || status ? 'No matching projects' : 'No projects yet'}</h2>
+          <p>{search || status ? 'Try adjusting your search or filters.' : 'Create a project to get started.'}</p>
+          {(search || status) && <button className="button button-secondary" type="button" onClick={() => { setSearchInput(''); setSearch(''); setStatus(''); setSortBy('newest'); setPage(1); }}>Clear filters</button>}
+          {!search && !status && canManage && !formOpen && (
             <button className="button button-secondary" type="button" onClick={openCreateForm}>
               Create your first project
             </button>
@@ -382,38 +406,20 @@ function ProjectsPage() {
       ) : (
         <div className="project-list">
           {projects.map((project) => (
-            <article className="project-card" key={project.id}>
+            <article className="project-card project-card-clickable" key={project.id} role="link" tabIndex="0" onClick={() => navigate(`/projects/${project.id}`)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); navigate(`/projects/${project.id}`); } }}>
               <div className="project-card-main">
                 <div className="project-card-title-row">
                   <h2>{project.name}</h2>
-                  <span className={`project-status${getProjectDisplayStatus(project) === 'Active' ? ' project-status-active' : ''}${getProjectDisplayStatus(project) === 'Overdue' ? ' project-status-overdue' : ''}`}>
+                  <span className={`project-status project-status-${String(project.status || '').toLowerCase().replace(/[^a-z]/g, '')}`}>
                     {getProjectDisplayStatus(project)}
                   </span>
                 </div>
-                <p className="project-description">{project.description || 'No description provided.'}</p>
-                <dl className="project-dates">
-                  <div>
-                    <dt>Start date</dt>
-                    <dd>{formatDate(project.startDate)}</dd>
-                  </div>
-                  <div>
-                    <dt>End date</dt>
-                    <dd>{formatDate(project.endDate)}</dd>
-                  </div>
-                </dl>
+                {project.description && <p className="project-description">{project.description}</p>}
+                <p className="project-inline-dates">{formatInlineDate(project.startDate)} <span aria-hidden="true">→</span> {formatInlineDate(project.endDate)}</p>
               </div>
               {canManage && <div className="project-actions">
-                <button className="button button-secondary" type="button" onClick={() => openEditForm(project)}>
-                  Edit
-                </button>
-                <button
-                  className="button button-danger"
-                  type="button"
-                  onClick={() => handleDelete(project)}
-                  disabled={deletingId === project.id}
-                >
-                  {deletingId === project.id ? 'Deleting…' : 'Delete'}
-                </button>
+                <button className="user-icon-button" type="button" aria-label="Edit project" title="Edit project" onClick={(event) => { event.stopPropagation(); openEditForm(project); }}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button>
+                <button className="user-icon-button project-delete-icon" type="button" aria-label={deletingId === project.id ? 'Deleting project' : 'Delete project'} title="Delete project" onClick={(event) => { event.stopPropagation(); setProjectToDelete(project); }} disabled={deletingId === project.id}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></button>
               </div>}
             </article>
           ))}
@@ -441,6 +447,7 @@ function ProjectsPage() {
           Next
         </button>
       </nav>
+      {projectToDelete && <div className="project-confirm-backdrop" role="presentation"><section className="project-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="project-delete-title"><h2 id="project-delete-title">Delete project?</h2><p>Delete {projectToDelete.name}? This can't be undone.</p><div><button className="button button-secondary" type="button" onClick={() => setProjectToDelete(null)}>Cancel</button><button className="button project-confirm-delete" type="button" onClick={() => handleDelete(projectToDelete)} disabled={deletingId === projectToDelete.id}>{deletingId === projectToDelete.id ? 'Deleting…' : 'Delete'}</button></div></section></div>}
     </section>
   );
 }

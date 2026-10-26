@@ -21,7 +21,11 @@ public class UserRepository
 
     public async Task<User?> GetByEmailAsync(string email) => await _users.AsNoTracking().FirstOrDefaultAsync(x => x.Email == email && !x.IsDeleted);
 
+    public async Task<User?> GetByEmailForUpdateAsync(string email, int id) => await _users.AsNoTracking().FirstOrDefaultAsync(x => x.Email == email && x.Id != id && !x.IsDeleted);
+
     public async Task<User?> GetByUserNameAsync(string userName) => await _users.AsNoTracking().FirstOrDefaultAsync(x => x.UserName == userName && !x.IsDeleted);
+
+    public async Task<User?> GetByUserNameForUpdateAsync(string userName, int id) => await _users.AsNoTracking().FirstOrDefaultAsync(x => x.UserName == userName && x.Id != id && !x.IsDeleted);
 
     public async Task<User> AddAsync(User user)
     {

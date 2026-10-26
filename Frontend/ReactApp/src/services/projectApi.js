@@ -1,8 +1,8 @@
 import apiClient from './apiClient';
 
-export async function getProjects({ page, pageSize, search, signal }) {
+export async function getProjects({ page, pageSize, search, status, sortBy, signal }) {
   const { data } = await apiClient.get('/projects', {
-    params: { page, pageSize, search },
+    params: { page, pageSize, search, status: status || undefined, sortBy },
     signal
   });
   return data;

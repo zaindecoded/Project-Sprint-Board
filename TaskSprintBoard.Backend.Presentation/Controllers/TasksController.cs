@@ -29,6 +29,7 @@ public class TasksController : ControllerBase
         [FromQuery] int? sprintId = null,
         [FromQuery] int? projectId = null,
         [FromQuery] DateTime? dueDate = null,
+        [FromQuery] string? dueDatePreset = null,
         [FromQuery] bool? isBlocked = null)
     {
         int? assignedUserId = null;
@@ -40,7 +41,7 @@ public class TasksController : ControllerBase
             assignedUserId = currentUserId;
         }
 
-        var (items, totalCount) = await _taskService.SearchTasksAsync(search, status, priority, projectId, sprintId, assignedUserId, dueDate, isBlocked, page, pageSize);
+        var (items, totalCount) = await _taskService.SearchTasksAsync(search, status, priority, projectId, sprintId, assignedUserId, dueDate, dueDatePreset, isBlocked, page, pageSize);
         var totalPages = (int)Math.Ceiling(totalCount / (double)Math.Max(1, pageSize));
 
         var responseItems = items.Select(MapToDto);

@@ -98,6 +98,28 @@ public class UsersController : ControllerBase
         }
     }
 
+    [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Update(int id, [FromBody] UserUpdateDto dto)
+    {
+        string? role = null;
+        if (!string.IsNullOrWhiteSpace(dto.Role))
+        {
+            if (!Enum.TryParse<UserRole>(dto.Role, true, out var parsedRole) || !Enum.IsDefined(parsedRole))
+                return BadRequest(new { success = false, message = "Role must be Admin, ProjectManager, or TeamMember." });
+            role = parsedRole.ToString();
+        }
+        if ((dto.FirstName is not null && string.IsNullOrWhiteSpace(dto.FirstName)) || (dto.LastName is not null && string.IsNullOrWhiteSpace(dto.LastName)) || (dto.Email is not null && string.IsNullOrWhiteSpace(dto.Email)) || (dto.UserName is not null && string.IsNullOrWhiteSpace(dto.UserName)))
+            return BadRequest(new { success = false, message = "Provided user fields cannot be blank." });
+        try
+        {
+            var user = await _userService.UpdateUserAsync(id, dto.FirstName?.Trim(), dto.LastName?.Trim(), dto.Email?.Trim(), dto.UserName?.Trim(), role, dto.Password, User.GetActorUserId());
+            return Ok(new UserDto { Id = user.Id, FirstName = user.FirstName, LastName = user.LastName, Email = user.Email, UserName = user.UserName, Role = user.Role, RoleId = user.RoleId, IsActive = user.IsActive && !user.IsDeleted });
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { success = false, message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(new { success = false, message = ex.Message, errors = new[] { ex.Message } }); }
+    }
+
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)

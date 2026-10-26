@@ -18,6 +18,7 @@ public class TaskRepository : GenericRepository<TaskItem>
         int? sprintId,
         int? userId,
         DateTime? dueDate,
+        string? dueDatePreset,
         bool? blocked,
         int skip,
         int take)
@@ -66,6 +67,8 @@ public class TaskRepository : GenericRepository<TaskItem>
             query = query.Where(x => x.DueDate.HasValue && x.DueDate.Value.Date == dueDate.Value.Date);
         }
 
+        query = ApplyDueDatePreset(query, dueDatePreset);
+
         if (blocked.HasValue)
         {
             query = query.Where(x => (x.Status == "Blocked") == blocked.Value);
@@ -82,6 +85,7 @@ public class TaskRepository : GenericRepository<TaskItem>
         int? sprintId,
         int? userId,
         DateTime? dueDate,
+        string? dueDatePreset,
         bool? blocked)
     {
         var query = DbSet.AsNoTracking().Where(x => !x.IsDeleted).AsQueryable();
@@ -121,12 +125,28 @@ public class TaskRepository : GenericRepository<TaskItem>
             query = query.Where(x => x.DueDate.HasValue && x.DueDate.Value.Date == dueDate.Value.Date);
         }
 
+        query = ApplyDueDatePreset(query, dueDatePreset);
+
         if (blocked.HasValue)
         {
             query = query.Where(x => (x.Status == "Blocked") == blocked.Value);
         }
 
         return await query.CountAsync();
+    }
+
+    private static IQueryable<TaskItem> ApplyDueDatePreset(IQueryable<TaskItem> query, string? preset)
+    {
+        var today = DateTime.Today;
+        var weekStart = today.AddDays(-(((int)today.DayOfWeek + 6) % 7));
+        return preset switch
+        {
+            "overdue" => query.Where(x => x.DueDate.HasValue && x.DueDate.Value.Date < today && x.Status != "Done" && x.Status != "Cancelled"),
+            "today" => query.Where(x => x.DueDate.HasValue && x.DueDate.Value.Date == today),
+            "thisWeek" => query.Where(x => x.DueDate.HasValue && x.DueDate.Value.Date >= today && x.DueDate.Value.Date < weekStart.AddDays(7)),
+            "noDueDate" => query.Where(x => !x.DueDate.HasValue),
+            _ => query
+        };
     }
 
     public async Task<TaskItem?> GetByIdWithDetailsAsync(int id)

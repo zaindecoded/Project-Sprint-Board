@@ -11,6 +11,7 @@ public class DashboardSummaryDto
     public int InProgressTasks { get; set; }
     public int CompletedTasks { get; set; }
     public int OverdueTasks { get; set; }
+    public int NearDeadlineTasks { get; set; }
     public int BlockedTasks { get; set; }
     public int LowRiskTasks { get; set; }
     public int MediumRiskTasks { get; set; }
@@ -31,6 +32,7 @@ public class DashboardAttentionTaskDto
     public string Priority { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public DateTime? DueDate { get; set; }
+    public bool NearDeadline { get; set; }
     public string? RiskLevel { get; set; }
     public decimal? RiskScore { get; set; }
     public string? RiskFactors { get; set; }

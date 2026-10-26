@@ -121,15 +121,11 @@ public class SprintService
         return await _sprintRepository.GetByIdAsync(id);
     }
 
-    public async Task<(IEnumerable<Sprint> Items, int TotalCount)> SearchSprintsAsync(string? search, int? projectId, int page, int pageSize)
+    public async Task<(IEnumerable<Sprint> Items, int TotalCount)> SearchSprintsAsync(string? search, int? projectId, string? status, int page, int pageSize)
     {
         var skip = Math.Max(0, page - 1) * pageSize;
-        var items = await _sprintRepository.SearchAsync(search, projectId, skip, pageSize);
-
-        var allMatching = await _sprintRepository.GetAllAsync(x => !x.IsDeleted &&
-            (!projectId.HasValue || x.ProjectId == projectId.Value) &&
-            (string.IsNullOrWhiteSpace(search) || x.Name.Contains(search) || x.Goal.Contains(search)));
-
-        return (items, allMatching.Count());
+        var items = await _sprintRepository.SearchAsync(search, projectId, status, skip, pageSize);
+        var count = await _sprintRepository.CountSearchAsync(search, projectId, status);
+        return (items, count);
     }
 }

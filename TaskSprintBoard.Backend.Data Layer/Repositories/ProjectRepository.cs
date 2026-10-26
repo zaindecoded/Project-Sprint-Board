@@ -15,7 +15,7 @@ public class ProjectRepository : GenericRepository<Project>
         return await DbSet.AsNoTracking().FirstOrDefaultAsync(x => x.Name == name && !x.IsDeleted);
     }
 
-    public async Task<IEnumerable<Project>> SearchAsync(string? search, int skip, int take)
+    private IQueryable<Project> SearchQuery(string? search, string? status)
     {
         var query = DbSet.AsNoTracking().Where(x => !x.IsDeleted).AsQueryable();
 
@@ -24,8 +24,36 @@ public class ProjectRepository : GenericRepository<Project>
             query = query.Where(x => x.Name.Contains(search) || (x.Description != null && x.Description.Contains(search)));
         }
 
-        return await query.OrderBy(x => x.Name).Skip(skip).Take(take).ToListAsync();
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            if (string.Equals(status, "Active", StringComparison.OrdinalIgnoreCase))
+            {
+                var today = DateTime.UtcNow.Date;
+                query = query.Where(x => x.Status == "Active" && (!x.EndDate.HasValue || x.EndDate.Value.Date >= today));
+            }
+            else
+            {
+                query = query.Where(x => x.Status == status);
+            }
+        }
+
+        return query;
     }
+
+    public async Task<IEnumerable<Project>> SearchAsync(string? search, string? status, string? sortBy, int skip, int take)
+    {
+        var query = SearchQuery(search, status);
+        query = sortBy?.ToLowerInvariant() switch
+        {
+            "name" => query.OrderBy(x => x.Name),
+            "enddate" => query.OrderBy(x => x.EndDate ?? DateTime.MaxValue).ThenBy(x => x.Name),
+            _ => query.OrderByDescending(x => x.CreatedAt)
+        };
+
+        return await query.Skip(skip).Take(take).ToListAsync();
+    }
+
+    public Task<int> CountSearchAsync(string? search, string? status) => SearchQuery(search, status).CountAsync();
 
     public Task<bool> HasSprintEndingAfterAsync(int projectId, DateTime endDate)
     {

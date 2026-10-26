@@ -3,7 +3,7 @@ import ErrorMessage from '../components/ErrorMessage';
 import { getProjects } from '../services/projectApi';
 import { getSprint, getSprints } from '../services/sprintApi';
 import { getTaskStatusHistory } from '../services/statusHistoryApi';
-import { evaluateTaskRisk } from '../services/intelligenceApi';
+import { evaluateTaskRisk, getLatestTaskRisk } from '../services/intelligenceApi';
 import { createTask, deleteTask, getTask, getTasks, updateTask } from '../services/taskApi';
 import { getApiErrorMessage } from '../services/apiErrors';
 import { useAuth } from '../context/AuthContext';
@@ -183,11 +183,26 @@ function TaskHistoryPanel({ task, onClose }) {
 function TaskRiskPanel({ task, onClose, onEvaluatingChange }) {
   const [result, setResult] = useState(null);
   const [evaluating, setEvaluating] = useState(false);
+  const [loadingResult, setLoadingResult] = useState(true);
   const [error, setError] = useState('');
   const requestController = useRef(null);
   const hasDueDate = Boolean(task.dueDate);
 
-  useEffect(() => () => requestController.current?.abort(), []);
+  useEffect(() => {
+    const controller = new AbortController();
+    getLatestTaskRisk(task.id, controller.signal)
+      .then(setResult)
+      .catch((requestError) => {
+        if (requestError.code !== 'ERR_CANCELED') {
+          setError(getApiErrorMessage(requestError, 'Unable to load saved risk evaluation.'));
+        }
+      })
+      .finally(() => setLoadingResult(false));
+    return () => {
+      controller.abort();
+      requestController.current?.abort();
+    };
+  }, [task.id]);
 
   async function handleEvaluate() {
     if (evaluating || !hasDueDate) {
@@ -236,19 +251,19 @@ function TaskRiskPanel({ task, onClose, onEvaluatingChange }) {
     : [];
 
   return (
-    <section className="task-risk-panel" aria-labelledby="task-risk-title">
+    <section className="task-risk-panel" role="dialog" aria-modal="true" aria-labelledby="task-risk-title">
       <div className="task-history-heading">
         <div>
           <p className="eyebrow">Task advisory</p>
           <h2 id="task-risk-title">Delay risk: {task.title}</h2>
         </div>
-        <button className="button button-secondary" type="button" onClick={onClose} disabled={evaluating}>Close risk</button>
+        <button className="task-drawer-close" type="button" aria-label="Close risk evaluation" onClick={onClose} disabled={evaluating}>×</button>
       </div>
 
      
       <ErrorMessage>{error}</ErrorMessage>
 
-      {!result ? (
+      {loadingResult ? <p>Loading saved evaluation...</p> : !result ? (
         <div className="task-risk-initial">
           <p>{hasDueDate ? 'Risk has not been evaluated yet.' : 'Add a due date before evaluating risk.'}</p>
           <button className="button button-primary" type="button" onClick={handleEvaluate} disabled={evaluating || !hasDueDate}>
@@ -302,6 +317,7 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
   const selectedSprint = sprints.find((item) => String(item.id) === String(form.sprintId))
     ?? (String(existingSprint?.id) === String(form.sprintId) ? existingSprint : null);
   const sprintEndDate = selectedSprint?.endDate ? dateInputValue(selectedSprint.endDate) : '';
+  const valid = Boolean(form.projectId && form.sprintId && form.title.trim() && Number(form.estimateHours) > 0 && (!form.startDate || !form.dueDate || form.dueDate >= form.startDate) && (!task || (Number.isInteger(Number(form.progressPercentage)) && Number(form.progressPercentage) >= 0 && Number(form.progressPercentage) <= 100)));
 
   useEffect(() => {
     let active = true;
@@ -433,7 +449,7 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
       progressPercentage: progress,
       startDate: form.startDate || null,
       dueDate: form.dueDate || null,
-      blockerInformation: form.blockerInformation.trim() || null
+      blockerInformation: form.blockerInformation.trim()
     };
 
     try {
@@ -466,13 +482,13 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
   const currentSprintMissing = existingSprint && !sprints.some((sprint) => sprint.id === existingSprint.id);
 
   return (
-    <section className="project-form-card" aria-labelledby="task-form-title">
+    <section className="task-drawer" role="dialog" aria-modal="true" aria-labelledby="task-form-title">
       <div className="project-form-heading">
         <div>
           <p className="eyebrow">{task ? 'Task details' : 'New task'}</p>
           <h2 id="task-form-title">{task ? 'Edit task' : 'Create task'}</h2>
         </div>
-        <button className="button button-secondary" type="button" onClick={onCancel} disabled={saving}>Cancel</button>
+        <button className="task-drawer-close" type="button" aria-label="Close task form" onClick={onCancel} disabled={saving}>×</button>
       </div>
       <ErrorMessage>{error}</ErrorMessage>
 
@@ -480,15 +496,17 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
         <p className="project-loading" role="status">Loading task details…</p>
       ) : (
         <form className="project-form" onSubmit={handleSubmit}>
+          <h3 className="task-form-section">Basics</h3>
           <div className="project-field">
-            <label htmlFor="task-project">Project <span aria-hidden="true">*</span></label>
+            <label htmlFor="task-project">Project <span className="task-required" aria-hidden="true">*</span></label>
             <select id="task-project" name="projectId" value={form.projectId} onChange={changeField} required disabled={saving}>
               <option value="">Select a project</option>
               {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
             </select>
+            {!form.projectId && <small className="task-field-error">Select a project.</small>}
           </div>
           <div className="project-field">
-            <label htmlFor="task-sprint">Sprint <span aria-hidden="true">*</span></label>
+            <label htmlFor="task-sprint">Sprint <span className="task-required" aria-hidden="true">*</span></label>
             <select
               id="task-sprint"
               name="sprintId"
@@ -503,35 +521,39 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
               )}
               {sprints.map((sprint) => <option key={sprint.id} value={sprint.id}>{sprint.name}</option>)}
             </select>
+            {form.projectId && !form.sprintId && <small className="task-field-error">Select a sprint.</small>}
           </div>
           <div className="project-field project-field-wide">
-            <label htmlFor="task-title">Title <span aria-hidden="true">*</span></label>
+            <label htmlFor="task-title">Title <span className="task-required" aria-hidden="true">*</span></label>
             <input id="task-title" name="title" value={form.title} onChange={changeField} maxLength={200} required disabled={saving} />
+            {!form.title.trim() && <small className="task-field-error">Title is required.</small>}
           </div>
           <div className="project-field project-field-wide">
             <label htmlFor="task-description">Description</label>
             <textarea id="task-description" name="description" value={form.description} onChange={changeField} maxLength={2000} rows={3} disabled={saving} />
           </div>
+          <h3 className="task-form-section">Planning</h3>
           <div className="project-field">
-            <label htmlFor="task-priority">Priority</label>
+            <label htmlFor="task-priority">Priority <span className="task-required" aria-hidden="true">*</span></label>
             <select id="task-priority" name="priority" value={form.priority} onChange={changeField} required disabled={saving}>
               {TASK_PRIORITIES.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
             </select>
           </div>
           <div className="project-field">
-            <label htmlFor="task-status">Status</label>
+            <label htmlFor="task-status">Status <span className="task-required" aria-hidden="true">*</span></label>
             <select id="task-status" name="status" value={form.status} onChange={changeField} required disabled={saving}>
               {TASK_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
             </select>
           </div>
           <div className="project-field">
-            <label htmlFor="task-estimate">Estimate (hours) <span aria-hidden="true">*</span></label>
+            <label htmlFor="task-estimate">Estimate (hours) <span className="task-required" aria-hidden="true">*</span></label>
             <input id="task-estimate" name="estimateHours" type="number" min="0.01" step="0.01" value={form.estimateHours} onChange={changeField} required disabled={saving} />
+            {(!form.estimateHours || Number(form.estimateHours) <= 0) && <small className="task-field-error">Enter a positive estimate.</small>}
           </div>
-          <div className="project-field">
+          {task && <div className="project-field">
             <label htmlFor="task-progress">Progress (%)</label>
             <input id="task-progress" name="progressPercentage" type="number" min="0" max="100" step="1" value={form.progressPercentage} onChange={changeField} required disabled={saving} />
-          </div>
+          </div>}
           <div className="project-field">
             <label htmlFor="task-start-date">Start date</label>
             <input
@@ -556,13 +578,14 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
               min={!task ? (form.startDate > getTodayDateInputValue() ? form.startDate : getTodayDateInputValue()) : (form.startDate || undefined)}
               disabled={saving}
             />
+            {form.startDate && form.dueDate && form.dueDate < form.startDate && <small className="task-field-error">Due date must be on or after the start date.</small>}
           </div>
-          <div className="project-field project-field-wide">
+          {form.status === 'Blocked' && <><h3 className="task-form-section">Blocker</h3><div className="project-field project-field-wide">
             <label htmlFor="task-blocker">Blocker information</label>
             <textarea id="task-blocker" name="blockerInformation" value={form.blockerInformation} onChange={changeField} maxLength={1000} rows={2} disabled={saving} />
-          </div>
+          </div></>}
           <div className="project-form-actions project-field-wide">
-            <button className="button button-primary" type="submit" disabled={saving || sprintsLoading || !form.sprintId}>
+            <button className="button button-primary" type="submit" disabled={saving || sprintsLoading || !valid}>
               {saving ? 'Saving…' : task ? 'Save changes' : 'Create task'}
             </button>
           </div>
@@ -582,7 +605,7 @@ function TasksPage() {
   const [lookupError, setLookupError] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState({ projectId: '', sprintId: '', status: '', priority: '', dueDate: '', isBlocked: '' });
+  const [filters, setFilters] = useState({ projectId: '', sprintId: '', status: '', priority: '', dueDatePreset: '', isBlocked: '' });
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -596,6 +619,25 @@ function TasksPage() {
   const [historyTask, setHistoryTask] = useState(null);
   const [riskTask, setRiskTask] = useState(null);
   const [riskEvaluatingTaskId, setRiskEvaluatingTaskId] = useState(null);
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+
+  useEffect(() => {
+    if (!formOpen) return undefined;
+    function closeOnEscape(event) {
+      if (event.key === 'Escape') setFormOpen(false);
+    }
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [formOpen]);
+
+  useEffect(() => {
+    if (!riskTask) return undefined;
+    function closeOnEscape(event) {
+      if (event.key === 'Escape') setRiskTask(null);
+    }
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [riskTask]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -693,6 +735,25 @@ function TasksPage() {
     }));
   }
 
+  function clearFilters() {
+    setSearchInput('');
+    setSearch('');
+    setFilters({ projectId: '', sprintId: '', status: '', priority: '', dueDatePreset: '', isBlocked: '' });
+    setPage(1);
+  }
+
+  const projectNames = useMemo(() => new Map(projects.map((project) => [project.id, project.name])), [projects]);
+  const listSprints = useMemo(() => new Map(sprints.map((sprint) => [sprint.id, sprint])), [sprints]);
+  const filterLabels = {
+    projectId: ['Project', projectNames.get(Number(filters.projectId))],
+    sprintId: ['Sprint', listSprints.get(Number(filters.sprintId))?.name],
+    status: ['Status', ({ Todo: 'To Do', InProgress: 'In Progress', Done: 'Completed' })[filters.status] || filters.status],
+    priority: ['Priority', filters.priority],
+    dueDatePreset: ['Due date', ({ overdue: 'Overdue', today: 'Due today', thisWeek: 'Due this week', noDueDate: 'No due date' })[filters.dueDatePreset]],
+    isBlocked: ['Blocked', filters.isBlocked === 'true' ? 'Blocked only' : 'Not blocked']
+  };
+  const activeFilters = Object.entries(filterLabels).filter(([key, [, value]]) => Boolean(filters[key] && value));
+
   function openCreateForm() {
     setNotice('');
     setHistoryTask(null);
@@ -736,8 +797,6 @@ function TasksPage() {
     }
   }
 
-  const projectNames = useMemo(() => new Map(projects.map((project) => [project.id, project.name])), [projects]);
-  const listSprints = useMemo(() => new Map(sprints.map((sprint) => [sprint.id, sprint])), [sprints]);
   const priorities = useMemo(() => [...new Set(tasks.map((task) => task.priority).filter(Boolean))], [tasks]);
   const statuses = useMemo(() => [...new Set(tasks.map((task) => task.status).filter(Boolean))], [tasks]);
 
@@ -758,6 +817,7 @@ function TasksPage() {
       <ErrorMessage>{lookupError}</ErrorMessage>
 
       {canManage && formOpen && (
+        <div className="task-drawer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) { setFormOpen(false); setEditingTask(null); } }}>
         <TaskForm
           key={editingTask?.id ?? 'new'}
           task={editingTask}
@@ -768,6 +828,7 @@ function TasksPage() {
           }}
           onSaved={handleSaved}
         />
+        </div>
       )}
 
       {historyTask && (
@@ -779,69 +840,47 @@ function TasksPage() {
       )}
 
       {canManage && riskTask && (
+        <div className="risk-drawer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setRiskTask(null); }}>
         <TaskRiskPanel
           key={riskTask.id}
           task={riskTask}
           onEvaluatingChange={(isEvaluating) => setRiskEvaluatingTaskId(isEvaluating ? riskTask.id : null)}
           onClose={() => setRiskTask(null)}
         />
+        </div>
       )}
 
-      <div className="projects-toolbar task-toolbar tasks-toolbar">
-        <label className="project-search">
-          <span>Search tasks</span>
-          <input
-            type="search"
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search by title or description"
-            aria-label="Search tasks by title or description"
-          />
-        </label>
-        <label className="project-filter">
-          <span>Project</span>
-          <select value={filters.projectId} onChange={(event) => updateFilter('projectId', event.target.value)} disabled={lookupsLoading}>
-            <option value="">All projects</option>
-            {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+      <div className="tasks-filter-bar">
+        <div className="tasks-filter-controls">
+          <input className="tasks-filter-search" type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search tasks" aria-label="Search tasks by title or description" />
+          <select aria-label="Filter by project" value={filters.projectId} onChange={(event) => updateFilter('projectId', event.target.value)} disabled={lookupsLoading}>
+            <option value="">All projects</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
           </select>
-        </label>
-        <label className="project-filter">
-          <span>Sprint</span>
-          <select value={filters.sprintId} onChange={(event) => updateFilter('sprintId', event.target.value)} disabled={!filters.projectId}>
-            <option value="">All sprints</option>
-            {sprints.map((sprint) => <option key={sprint.id} value={sprint.id}>{sprint.name}</option>)}
+          <select aria-label="Filter by sprint" value={filters.sprintId} onChange={(event) => updateFilter('sprintId', event.target.value)} disabled={!filters.projectId}>
+            <option value="">All sprints</option>{sprints.map((sprint) => <option key={sprint.id} value={sprint.id}>{sprint.name}</option>)}
           </select>
-        </label>
-        <label className="project-filter">
-          <span>Status</span>
-          <select value={filters.status} onChange={(event) => updateFilter('status', event.target.value)}>
-            <option value="">All statuses</option>
-            {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
+          <select aria-label="Filter by status" value={filters.status} onChange={(event) => updateFilter('status', event.target.value)}>
+            <option value="">All statuses</option>{TASK_STATUSES.map((status) => <option key={status} value={status}>{({ Todo: 'To Do', InProgress: 'In Progress', Done: 'Completed' })[status] || status}</option>)}
           </select>
-        </label>
-        <label className="project-filter">
-          <span>Priority</span>
-          <select value={filters.priority} onChange={(event) => updateFilter('priority', event.target.value)}>
-            <option value="">All priorities</option>
-            {priorities.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
+          <select aria-label="Filter by priority" value={filters.priority} onChange={(event) => updateFilter('priority', event.target.value)}>
+            <option value="">All priorities</option>{TASK_PRIORITIES.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
           </select>
-        </label>
-        <label className="project-filter">
-          <span>Due date</span>
-          <input type="date" value={filters.dueDate} onChange={(event) => updateFilter('dueDate', event.target.value)} />
-        </label>
-        <label className="project-filter">
-          <span>Blocked</span>
-          <select value={filters.isBlocked} onChange={(event) => updateFilter('isBlocked', event.target.value)}>
-            <option value="">All tasks</option>
-            <option value="true">Blocked</option>
-            <option value="false">Not blocked</option>
-          </select>
-        </label>
-        <span className="project-count">
-          {lookupsLoading ? 'Loading projects…' : `${totalCount} ${totalCount === 1 ? 'task' : 'tasks'}`}
-        </span>
+          <div className="tasks-more-wrap">
+            <button className="tasks-more-button" type="button" aria-expanded={moreFiltersOpen} onClick={() => setMoreFiltersOpen((open) => !open)}>More filters</button>
+            {moreFiltersOpen && <div className="tasks-more-popover">
+              <label>Due date<select value={filters.dueDatePreset} onChange={(event) => updateFilter('dueDatePreset', event.target.value)}><option value="">Any time</option><option value="overdue">Overdue</option><option value="today">Due today</option><option value="thisWeek">Due this week</option><option value="noDueDate">No due date</option></select></label>
+              <label>Blocked<select value={filters.isBlocked} onChange={(event) => updateFilter('isBlocked', event.target.value)}><option value="">All</option><option value="true">Blocked only</option></select></label>
+            </div>}
+          </div>
+        </div>
+        <span className="project-count">{loading || searchInput.trim() !== search ? 'Loading tasks…' : `Showing ${totalCount ? (page - 1) * PAGE_SIZE + 1 : 0}-${Math.min(page * PAGE_SIZE, totalCount)} of ${totalCount}`}</span>
       </div>
+
+      {(activeFilters.length > 0 || search) && <div className="tasks-active-filters" aria-label="Active filters">
+        {search && <button type="button" className="tasks-filter-chip" onClick={() => { setSearchInput(''); setSearch(''); setPage(1); }}>Search: {search} <span aria-hidden="true">×</span></button>}
+        {activeFilters.map(([key, [label, value]]) => <button key={key} type="button" className="tasks-filter-chip" onClick={() => updateFilter(key, '')}>{label}: {value} <span aria-hidden="true">×</span></button>)}
+        <button type="button" className="tasks-clear-filters" onClick={clearFilters}>Clear all</button>
+      </div>}
 
       {!lookupsLoading && projects.length === 0 && !lookupError && canManage && (
         <div className="project-notice">Create a project and sprint before adding tasks.</div>
@@ -869,7 +908,6 @@ function TasksPage() {
                 <th scope="col">Status</th>
                 <th scope="col">Due date</th>
                 <th scope="col">Progress</th>
-                <th scope="col">Active</th>
                 <th scope="col">Actions</th>
               </tr>
             </thead>
@@ -890,34 +928,39 @@ function TasksPage() {
                     <td data-label="Status">{getTaskDisplayStatus(task) === 'Overdue' ? 'Overdue' : task.status}</td>
                     <td data-label="Due date">{formatDate(task.dueDate)}</td>
                     <td data-label="Progress">{task.progressPercentage}%</td>
-                    <td data-label="Active"><span className={`project-status${getTaskActivityStatus(task) === 'Active' ? ' project-status-active' : ''}${getTaskActivityStatus(task) === 'Overdue' ? ' project-status-overdue' : ''}`}>{getTaskActivityStatus(task)}</span></td>
                     <td data-label="Actions">
                       <div className="task-row-actions">
-                        {canManage && <button className="button button-secondary" type="button" onClick={() => openEditForm(task)}>Edit</button>}
+                        {canManage && <button className="user-icon-button" type="button" aria-label="Edit task" title="Edit task" onClick={() => openEditForm(task)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button>}
                         <button
-                          className="button button-secondary"
+                          className="user-icon-button"
                           type="button"
+                          aria-label={historyTask?.id === task.id ? 'Hide task history' : 'View task history'}
+                          title={historyTask?.id === task.id ? 'Hide history' : 'View history'}
                           aria-expanded={historyTask?.id === task.id}
                           onClick={() => setHistoryTask((current) => current?.id === task.id ? null : task)}
                         >
-                          {historyTask?.id === task.id ? 'Hide history' : 'View history'}
+                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5m4-1v5l3 2"/></svg>
                         </button>
                         {canManage && !['done', 'cancelled'].includes(String(task.status).toLowerCase()) && <button
-                          className="button button-secondary"
+                          className="user-icon-button"
                           type="button"
+                          aria-label={riskTask?.id === task.id ? 'Hide risk evaluation' : 'Evaluate task risk'}
+                          title={riskTask?.id === task.id ? 'Hide risk' : 'Evaluate risk'}
                           aria-expanded={riskTask?.id === task.id}
                           disabled={riskEvaluatingTaskId === task.id}
                           onClick={() => setRiskTask((current) => current?.id === task.id ? null : task)}
                         >
-                          {riskTask?.id === task.id ? 'Hide risk' : 'Evaluate risk'}
+                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 10 18H2L12 3Z"/><path d="M12 9v5m0 3h.01"/></svg>
                         </button>}
                         {canManage && <button
-                          className="button button-danger"
+                          className="user-icon-button"
                           type="button"
+                          aria-label={deletingId === task.id ? 'Deleting task' : 'Delete task'}
+                          title="Delete task"
                           onClick={() => handleDelete(task)}
                           disabled={deletingId === task.id}
                         >
-                          {deletingId === task.id ? 'Deleting…' : 'Delete'}
+                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg>
                         </button>}
                       </div>
                     </td>

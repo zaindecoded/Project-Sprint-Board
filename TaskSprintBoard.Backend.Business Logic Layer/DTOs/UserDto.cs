@@ -52,6 +52,16 @@ public class UserRoleUpdateDto
     public string Role { get; set; } = string.Empty;
 }
 
+public class UserUpdateDto
+{
+    [StringLength(100)] public string? FirstName { get; set; }
+    [StringLength(100)] public string? LastName { get; set; }
+    [EmailAddress, StringLength(200)] public string? Email { get; set; }
+    [StringLength(100)] public string? UserName { get; set; }
+    public string? Password { get; set; }
+    public string? Role { get; set; }
+}
+
 public class LoginResponseDto
 {
     public string Token { get; set; } = string.Empty;

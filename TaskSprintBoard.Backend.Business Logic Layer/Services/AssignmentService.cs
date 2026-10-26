@@ -159,6 +159,7 @@ public class AssignmentService
         int? taskId,
         int? userId,
         bool? isActive,
+        string? sortBy,
         int page,
         int pageSize)
     {
@@ -166,7 +167,7 @@ public class AssignmentService
         var safePageSize = Math.Max(1, pageSize);
         var skip = (safePage - 1) * safePageSize;
 
-        var items = await _assignmentRepository.SearchAsync(search, taskId, userId, isActive, skip, safePageSize);
+        var items = await _assignmentRepository.SearchAsync(search, taskId, userId, isActive, sortBy, skip, safePageSize);
         var totalCount = await _assignmentRepository.CountAsync(search, taskId, userId, isActive);
 
         return (items, totalCount);

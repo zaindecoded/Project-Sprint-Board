@@ -1,8 +1,8 @@
 import apiClient from './apiClient';
 
-export async function getSprints({ page, pageSize, search, projectId, signal }) {
+export async function getSprints({ page, pageSize, search, projectId, status, signal }) {
   const { data } = await apiClient.get('/sprints', {
-    params: { page, pageSize, search, projectId: projectId || undefined },
+    params: { page, pageSize, search, projectId: projectId || undefined, status: status || undefined },
     signal
   });
   return data;

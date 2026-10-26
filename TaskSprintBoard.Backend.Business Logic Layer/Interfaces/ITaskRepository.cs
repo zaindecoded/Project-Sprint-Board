@@ -14,6 +14,7 @@ public interface ITaskRepository
         int? sprintId,
         int? userId,
         DateTime? dueDate,
+        string? dueDatePreset,
         bool? blocked,
         int skip,
         int take);
@@ -25,6 +26,7 @@ public interface ITaskRepository
         int? sprintId,
         int? userId,
         DateTime? dueDate,
+        string? dueDatePreset,
         bool? blocked);
     Task<TaskItem> AddAsync(TaskItem task);
     Task UpdateAsync(TaskItem task);

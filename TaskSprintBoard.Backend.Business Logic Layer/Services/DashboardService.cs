@@ -36,6 +36,7 @@ public class DashboardService
             InProgressTasks = CountStatus(tasks, "InProgress"),
             CompletedTasks = CountStatus(tasks, "Done"),
             OverdueTasks = tasks.Count(x => x.DueDate.HasValue && x.DueDate.Value < now && x.Status != "Done"),
+            NearDeadlineTasks = tasks.Count(x => IsOpen(x) && x.DueDate.HasValue && x.DueDate.Value.Date >= now.Date && x.DueDate.Value.Date <= now.Date.AddDays(7)),
             BlockedTasks = CountStatus(tasks, "Blocked"),
             LowRiskTasks = tasks.Count(task => IsOpen(task) && LatestRisk(task)?.RiskLevel == "Low"),
             MediumRiskTasks = tasks.Count(task => IsOpen(task) && LatestRisk(task)?.RiskLevel == "Medium"),
@@ -51,11 +52,13 @@ public class DashboardService
 
         return tasks
             .Where(IsOpen)
-            .Select(task => new { Task = task, Risk = LatestRisk(task) })
-            .Where(item => item.Task.Priority == "Critical" || item.Risk?.RiskLevel == "High")
-            .OrderByDescending(item => item.Task.DueDate.HasValue && item.Task.DueDate.Value < now)
+            .Select(task => new { Task = task, Risk = LatestRisk(task), NearDeadline = IsNearDeadline(task, now) })
+            .Where(item => item.NearDeadline || item.Risk?.RiskLevel == "High"
+                || item.Task.Status == "Blocked"
+                || item.Task.DueDate.HasValue && item.Task.DueDate.Value.Date < now.Date)
+            .OrderByDescending(item => item.Task.Status == "Blocked"
+                || item.Task.DueDate.HasValue && item.Task.DueDate.Value.Date < now.Date)
             .ThenByDescending(item => item.Risk?.RiskLevel == "High")
-            .ThenByDescending(item => item.Task.Priority == "Critical")
             .ThenBy(item => item.Task.DueDate ?? DateTime.MaxValue)
             .Take(10)
             .Select(item => new DashboardAttentionTaskDto
@@ -65,12 +68,17 @@ public class DashboardService
                 Priority = item.Task.Priority,
                 Status = item.Task.Status,
                 DueDate = item.Task.DueDate,
+                NearDeadline = item.NearDeadline,
                 RiskLevel = item.Risk?.RiskLevel,
                 RiskScore = item.Risk?.RiskScore,
                 RiskFactors = item.Risk?.RiskFactors
             })
             .ToList();
     }
+
+    private static bool IsNearDeadline(TaskItem task, DateTime now) => task.DueDate.HasValue
+        && task.DueDate.Value.Date >= now.Date
+        && task.DueDate.Value.Date <= now.Date.AddDays(7);
 
     private static TaskRiskEvaluation? LatestRisk(TaskItem task)
     {

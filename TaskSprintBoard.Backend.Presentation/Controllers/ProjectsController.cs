@@ -18,9 +18,9 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string search = "")
+    public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string search = "", [FromQuery] string? status = null, [FromQuery] string sortBy = "newest")
     {
-        var (items, totalCount) = await _projectService.SearchProjectsAsync(search, page, pageSize);
+        var (items, totalCount) = await _projectService.SearchProjectsAsync(search, status, sortBy, page, pageSize);
         var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
         var dtos = items.Select(p => new ProjectDto

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import ErrorMessage from '../../components/ErrorMessage';
 import { useAuth } from '../../context/AuthContext';
 import { deleteSprint, getSprint, getSprints, createSprint, updateSprint } from '../../services/sprintApi';
@@ -10,7 +11,7 @@ import { getTodayDateInputValue, isPastDate } from '../../utils/displayStatus';
 const PAGE_SIZE = 10;
 const PROJECT_PAGE_SIZE = 100;
 const SPRINT_STATUSES = ['Planned', 'Active', 'Completed', 'Cancelled'];
-const EMPTY_FORM = { projectId: '', name: '', startDate: '', endDate: '', goal: '', status: 'Planned' };
+const EMPTY_FORM = { projectId: '', name: '', startDate: getTodayDateInputValue(), endDate: '', goal: '', status: 'Planned' };
 
 function getSprintDisplayStatus(sprint) {
   const status = sprint.status || '—';
@@ -29,6 +30,19 @@ function formatDate(value) {
   return Number.isNaN(date.getTime())
     ? '—'
     : new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' }).format(date);
+}
+
+function formatCompactDate(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date);
+}
+
+function daysUntil(value) {
+  const due = new Date(`${dateInputValue(value)}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.ceil((due - today) / 86400000);
 }
 
 function dateInputValue(value) {
@@ -73,6 +87,8 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
   const [error, setError] = useState('');
   const selectedProject = projects.find((project) => String(project.id) === String(form.projectId));
   const projectEndDate = selectedProject?.endDate ? dateInputValue(selectedProject.endDate) : '';
+  const datesError = form.startDate && form.endDate && form.endDate <= form.startDate ? 'End date must be after the start date.' : '';
+  const valid = Boolean(form.projectId && form.name.trim() && form.startDate && form.endDate && !datesError && (!projectEndDate || form.endDate <= projectEndDate));
 
   useEffect(() => {
     let active = true;
@@ -137,8 +153,8 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
         return;
       }
     }
-    if (form.endDate < form.startDate) {
-      setError('End date must be on or after the start date.');
+    if (form.endDate <= form.startDate) {
+      setError('End date must be after the start date.');
       return;
     }
     if (projectEndDate && form.endDate > projectEndDate) {
@@ -154,7 +170,7 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
       startDate: form.startDate,
       endDate: form.endDate,
       goal: form.goal.trim(),
-      status: form.status.trim()
+      status: sprint ? form.status.trim() : 'Planned'
     };
     try {
       if (sprint) {
@@ -172,15 +188,10 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
   }
 
   return (
-    <section className="project-form-card" aria-labelledby="sprint-form-title">
+    <section className="sprint-modal" role="dialog" aria-modal="true" aria-labelledby="sprint-form-title">
       <div className="project-form-heading">
-        <div>
-          <p className="eyebrow">{sprint ? 'Sprint details' : 'New sprint'}</p>
-          <h2 id="sprint-form-title">{sprint ? 'Edit sprint' : 'Create sprint'}</h2>
-        </div>
-        <button className="button button-secondary" type="button" onClick={onCancel} disabled={saving}>
-          Cancel
-        </button>
+        <h2 id="sprint-form-title">{sprint ? 'Edit sprint' : 'Create sprint'}</h2>
+        <button className="sprint-modal-close" type="button" aria-label="Close" onClick={onCancel} disabled={saving}>×</button>
       </div>
 
       <ErrorMessage>{error}</ErrorMessage>
@@ -190,7 +201,7 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
       ) : (
         <form className="project-form" onSubmit={handleSubmit}>
           <div className="project-field project-field-wide">
-            <label htmlFor="sprint-project">Project <span aria-hidden="true">*</span></label>
+            <label htmlFor="sprint-project">Project <span className="sprint-required">*</span></label>
             <select
               id="sprint-project"
               name="projectId"
@@ -204,9 +215,10 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
                 <option key={project.id} value={project.id}>{project.name}</option>
               ))}
             </select>
+            {!form.projectId && <small className="sprint-field-error">Choose a project.</small>}
           </div>
           <div className="project-field project-field-wide">
-            <label htmlFor="sprint-name">Sprint name <span aria-hidden="true">*</span></label>
+            <label htmlFor="sprint-name">Sprint name <span className="sprint-required">*</span></label>
             <input
               id="sprint-name"
               name="name"
@@ -216,9 +228,10 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
               required
               disabled={saving}
             />
+            {!form.name.trim() && <small className="sprint-field-error">Sprint name is required.</small>}
           </div>
           <div className="project-field">
-            <label htmlFor="sprint-start-date">Start date <span aria-hidden="true">*</span></label>
+            <label htmlFor="sprint-start-date">Start date <span className="sprint-required">*</span></label>
             <input
               id="sprint-start-date"
               name="startDate"
@@ -229,9 +242,10 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
               required
               disabled={saving}
             />
+            {!form.startDate && <small className="sprint-field-error">Start date is required.</small>}
           </div>
           <div className="project-field">
-            <label htmlFor="sprint-end-date">End date <span aria-hidden="true">*</span></label>
+            <label htmlFor="sprint-end-date">End date <span className="sprint-required">*</span></label>
             <input
               id="sprint-end-date"
               name="endDate"
@@ -243,6 +257,7 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
               required
               disabled={saving}
             />
+            {!form.endDate ? <small className="sprint-field-error">End date is required.</small> : datesError ? <small className="sprint-field-error">{datesError}</small> : null}
           </div>
           <div className="project-field project-field-wide">
             <label htmlFor="sprint-goal">Goal</label>
@@ -256,7 +271,7 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
               disabled={saving}
             />
           </div>
-          <div className="project-field">
+          {sprint && <div className="project-field">
             <label htmlFor="sprint-status">Status</label>
             <select
               id="sprint-status"
@@ -268,9 +283,9 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
               {!SPRINT_STATUSES.includes(form.status) && <option value={form.status}>{form.status}</option>}
               {SPRINT_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
             </select>
-          </div>
+          </div>}
           <div className="project-form-actions project-field-wide">
-            <button className="button button-primary" type="submit" disabled={saving || projects.length === 0}>
+            <button className="button button-primary" type="submit" disabled={saving || !valid || projects.length === 0}>
               {saving ? 'Saving…' : sprint ? 'Save changes' : 'Create sprint'}
             </button>
           </div>
@@ -282,12 +297,14 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
 
 function SprintsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const canManage = canManageWorkspace(user);
   const [sprints, setSprints] = useState([]);
   const [projects, setProjects] = useState([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [projectsError, setProjectsError] = useState('');
   const [projectId, setProjectId] = useState('');
+  const [status, setStatus] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -299,6 +316,19 @@ function SprintsPage() {
   const [editingSprint, setEditingSprint] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [sprintToDelete, setSprintToDelete] = useState(null);
+
+  useEffect(() => {
+    if (!formOpen && !sprintToDelete) return undefined;
+    function onEscape(event) {
+      if (event.key === 'Escape') {
+        if (sprintToDelete) setSprintToDelete(null);
+        else setFormOpen(false);
+      }
+    }
+    window.addEventListener('keydown', onEscape);
+    return () => window.removeEventListener('keydown', onEscape);
+  }, [formOpen, sprintToDelete]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -331,7 +361,7 @@ function SprintsPage() {
     setLoading(true);
     setListError('');
     try {
-      const result = await getSprints({ page, pageSize: PAGE_SIZE, search, projectId, signal });
+      const result = await getSprints({ page, pageSize: PAGE_SIZE, search, projectId, status, signal });
       setSprints(Array.isArray(result.items) ? result.items : []);
       setTotalCount(Number(result.totalCount) || 0);
       setTotalPages(Number(result.totalPages) || 0);
@@ -347,7 +377,7 @@ function SprintsPage() {
         setLoading(false);
       }
     }
-  }, [page, projectId, search]);
+  }, [page, projectId, search, status]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -375,15 +405,13 @@ function SprintsPage() {
   }
 
   async function handleDelete(sprint) {
-    if (!window.confirm(`Delete "${sprint.name}"? This will remove it from the active sprint list.`)) {
-      return;
-    }
     setDeletingId(sprint.id);
     setListError('');
     setNotice('');
     try {
       await deleteSprint(sprint.id);
-      setNotice('Sprint deleted successfully.');
+      setSprintToDelete(null);
+      setNotice(`${sprint.name} deleted successfully.`);
       if (sprints.length === 1 && page > 1) {
         setPage(page - 1);
       } else {
@@ -399,11 +427,9 @@ function SprintsPage() {
   const projectNames = new Map(projects.map((project) => [project.id, project.name]));
 
   return (
-    <section className="projects-page">
+      <section className="sprints-page">
       <div className="projects-heading">
-        <div>
-          <h1>Sprints</h1>
-        </div>
+        <div><h1>Sprints</h1></div>
         {canManage && !formOpen && (
           <button className="button button-primary" type="button" onClick={openCreateForm} disabled={projectsLoading || projects.length === 0}>
             Create sprint
@@ -415,6 +441,7 @@ function SprintsPage() {
       <ErrorMessage>{projectsError}</ErrorMessage>
 
       {canManage && formOpen && (
+        <div className="sprint-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) { setFormOpen(false); setEditingSprint(null); } }}>
         <SprintForm
           key={editingSprint?.id ?? 'new'}
           sprint={editingSprint}
@@ -425,6 +452,7 @@ function SprintsPage() {
           }}
           onSaved={handleSaved}
         />
+        </div>
       )}
 
       <div className="projects-toolbar sprint-toolbar">
@@ -454,9 +482,8 @@ function SprintsPage() {
             ))}
           </select>
         </label>
-        <span className="project-count">
-          {projectsLoading ? 'Loading projects…' : `${totalCount} ${totalCount === 1 ? 'sprint' : 'sprints'}`}
-        </span>
+        <label className="project-filter"><span>Status</span><select value={status} onChange={(event) => { setPage(1); setStatus(event.target.value); }}><option value="">All statuses</option><option value="Planned">Planned</option><option value="Active">Active</option><option value="Completed">Completed</option></select></label>
+        <span className="project-count">{loading || searchInput.trim() !== search ? 'Loading sprints…' : `Showing ${totalCount ? (page - 1) * PAGE_SIZE + 1 : 0}-${Math.min(page * PAGE_SIZE, totalCount)} of ${totalCount}`}</span>
       </div>
 
       {!projectsLoading && projects.length === 0 && !projectsError && canManage && (
@@ -468,9 +495,10 @@ function SprintsPage() {
         <div className="project-state" role="status">Loading sprints…</div>
       ) : sprints.length === 0 ? (
         <div className="project-state project-empty">
-          <h2>{search || projectId ? 'No matching sprints' : 'No sprints yet'}</h2>
-          <p>{search || projectId ? 'Try changing the search or project filter.' : canManage ? 'Create a sprint to get started.' : 'No sprints are available yet.'}</p>
-          {!search && !projectId && projects.length > 0 && canManage && !formOpen && (
+          <h2>{search || projectId || status ? 'No matching sprints' : 'No sprints yet'}</h2>
+          <p>{search || projectId || status ? 'Try changing the search or filters.' : canManage ? 'Create a sprint to get started.' : 'No sprints are available yet.'}</p>
+          {(search || projectId || status) && <button className="button button-secondary" type="button" onClick={() => { setSearchInput(''); setSearch(''); setProjectId(''); setStatus(''); setPage(1); }}>Clear filters</button>}
+          {!search && !projectId && !status && projects.length > 0 && canManage && !formOpen && (
             <button className="button button-secondary" type="button" onClick={openCreateForm}>
               Create your first sprint
             </button>
@@ -479,29 +507,19 @@ function SprintsPage() {
       ) : (
         <div className="project-list">
           {sprints.map((sprint) => (
-            <article className="project-card" key={sprint.id}>
+            <article className="project-card sprint-card sprint-card-clickable" key={sprint.id} role="link" tabIndex="0" onClick={() => navigate(`/sprints/${sprint.id}`)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); navigate(`/sprints/${sprint.id}`); } }}>
               <div className="project-card-main">
                 <div className="project-card-title-row">
                   <h2>{sprint.name}</h2>
+                  <span className={`sprint-status-badge sprint-status-${getSprintDisplayStatus(sprint).toLowerCase()}`}>{getSprintDisplayStatus(sprint)}</span>
                 </div>
-                <p className="sprint-project-name">{projectNames.get(sprint.projectId) || 'Project unavailable'}</p>
-                <p className="project-description">{sprint.goal || 'No goal provided.'}</p>
-                <dl className="project-dates">
-                  <div><dt>Start date</dt><dd>{formatDate(sprint.startDate)}</dd></div>
-                  <div><dt>End date</dt><dd>{formatDate(sprint.endDate)}</dd></div>
-                  <div><dt>Status</dt><dd>{getSprintDisplayStatus(sprint)}</dd></div>
-                </dl>
+                <Link className="sprint-project-name" to={`/projects/${sprint.projectId}`} onClick={(event) => event.stopPropagation()}>{projectNames.get(sprint.projectId) || 'Project unavailable'}</Link>
+                {sprint.goal && <p className="sprint-goal">{sprint.goal}</p>}
+                <div className="sprint-card-footer"><span className="sprint-inline-dates">{formatCompactDate(sprint.startDate)} → {formatCompactDate(sprint.endDate)}, {new Date(sprint.endDate).getFullYear()}</span>{String(sprint.status).toLowerCase() === 'active' && <span className={`sprint-days-left${daysUntil(sprint.endDate) < 0 ? ' sprint-days-overdue' : ''}`}>{daysUntil(sprint.endDate) < 0 ? 'Overdue' : daysUntil(sprint.endDate) === 0 ? 'Ends today' : `${daysUntil(sprint.endDate)} days left`}</span>}</div>
               </div>
               {canManage && <div className="project-actions">
-                <button className="button button-secondary" type="button" onClick={() => openEditForm(sprint)}>Edit</button>
-                <button
-                  className="button button-danger"
-                  type="button"
-                  onClick={() => handleDelete(sprint)}
-                  disabled={deletingId === sprint.id}
-                >
-                  {deletingId === sprint.id ? 'Deleting…' : 'Delete'}
-                </button>
+                <button className="user-icon-button" type="button" aria-label="Edit sprint" title="Edit sprint" onClick={(event) => { event.stopPropagation(); openEditForm(sprint); }}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button>
+                <button className="user-icon-button sprint-delete-icon" type="button" aria-label="Delete sprint" title="Delete sprint" onClick={(event) => { event.stopPropagation(); setSprintToDelete(sprint); }} disabled={deletingId === sprint.id}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></button>
               </div>}
             </article>
           ))}
@@ -527,6 +545,7 @@ function SprintsPage() {
           Next
         </button>
       </nav>
+      {sprintToDelete && <div className="sprint-confirm-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setSprintToDelete(null); }}><section className="sprint-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="sprint-delete-title"><h2 id="sprint-delete-title">Delete sprint?</h2><p>Delete {sprintToDelete.name}? This can't be undone.</p><div><button className="button button-secondary" type="button" onClick={() => setSprintToDelete(null)}>Cancel</button><button className="button sprint-confirm-delete" type="button" onClick={() => handleDelete(sprintToDelete)} disabled={deletingId === sprintToDelete.id}>{deletingId === sprintToDelete.id ? 'Deleting…' : 'Delete'}</button></div></section></div>}
     </section>
   );
 }

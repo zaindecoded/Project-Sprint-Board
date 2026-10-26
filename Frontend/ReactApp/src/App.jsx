@@ -15,6 +15,9 @@ import AdminRoute from './routes/AdminRoute';
 import ManagerRoute from './routes/ManagerRoute';
 import HomeRedirect from './routes/HomeRedirect';
 import AuditLogPage from './pages/AuditLogPage';
+import TaskDetailPage from './pages/TaskDetailPage';
+import ProjectDetailPage from './pages/projects/ProjectDetailPage';
+import SprintDetailPage from './pages/sprints/SprintDetailPage';
 
 function App() {
   return (
@@ -27,11 +30,14 @@ function App() {
         <Route element={<Layout />}>
           <Route index element={<HomeRedirect />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/tasks/:id" element={<TaskDetailPage />} />
           <Route path="/assignments" element={<AssignmentsPage />} />
           <Route path="/comments" element={<CommentsPage />} />
           <Route element={<ManagerRoute />}>
             <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/projects/:id" element={<ProjectDetailPage />} />
             <Route path="/sprints" element={<SprintsPage />} />
+            <Route path="/sprints/:id" element={<SprintDetailPage />} />
             <Route path="/tasks" element={<TasksPage />} />
             <Route element={<AdminRoute />}>
               <Route path="/users" element={<UsersPage />} />

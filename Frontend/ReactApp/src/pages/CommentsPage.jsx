@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import ErrorMessage from '../components/ErrorMessage';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { canManageWorkspace } from '../utils/permissions';
 import { getApiErrorMessage } from '../services/apiErrors';
@@ -32,9 +33,55 @@ function formatDate(value) {
     }).format(date);
 }
 
+function relativeTime(value) {
+  const seconds = Math.round((new Date(value).getTime() - Date.now()) / 1000);
+  const abs = Math.abs(seconds);
+  const [amount, unit] = abs < 60 ? [seconds, 'second'] : abs < 3600 ? [Math.round(seconds / 60), 'minute'] : abs < 86400 ? [Math.round(seconds / 3600), 'hour'] : abs < 2592000 ? [Math.round(seconds / 86400), 'day'] : abs < 31536000 ? [Math.round(seconds / 2592000), 'month'] : [Math.round(seconds / 31536000), 'year'];
+  return new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }).format(amount, unit);
+}
+
+function initials(name) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+}
+
+function CommentFeedCard({ comment, task, author, canEdit, onEdit, onDelete, deleting }) {
+  const messageRef = useRef(null);
+  const [expanded, setExpanded] = useState(false);
+  const [isLong, setIsLong] = useState(false);
+
+  useEffect(() => {
+    const element = messageRef.current;
+    if (!element) return undefined;
+    setExpanded(false);
+    setIsLong(false);
+    const measure = () => { if (element.scrollHeight > element.clientHeight + 1) setIsLong(true); };
+    const frame = requestAnimationFrame(measure);
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => { cancelAnimationFrame(frame); observer.disconnect(); };
+  }, [comment.message]);
+
+  const edited = comment.updatedAt && new Date(comment.updatedAt) > new Date(comment.createdAt);
+  return <article className="comment-feed-card">
+    <header className="comment-feed-header">
+      <span className="comment-avatar" aria-hidden="true">{initials(author)}</span>
+      <div className="comment-feed-byline"><strong>{author}</strong><time dateTime={comment.createdAt} title={formatDate(comment.createdAt)}>{relativeTime(comment.createdAt)}</time>
+        {edited && <span className="comment-edited" title={`Edited ${formatDate(comment.updatedAt)}`}>Edited</span>}
+      </div>
+      {canEdit && <div className="comment-feed-actions">
+        <button className="user-icon-button" type="button" aria-label="Edit" title="Edit" onClick={() => onEdit(comment)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button>
+        <button className="user-icon-button comment-delete-icon" type="button" aria-label="Delete" title="Delete" onClick={() => onDelete(comment)} disabled={deleting}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></button>
+      </div>}
+    </header>
+    <Link className="comment-task-chip" to={`/tasks/${comment.taskId}`}>{task?.title || `Task · ${comment.taskId}`}</Link>
+    <p ref={messageRef} className={`comment-feed-message${expanded ? ' comment-feed-message-expanded' : ''}`}>{comment.message}</p>
+    {isLong && <button type="button" className="comment-show-toggle" onClick={() => setExpanded((value) => !value)}>{expanded ? 'Show less' : 'Show more'}</button>}
+  </article>;
+}
+
 function userLabel(userId, currentUser, users = []) {
   if (currentUser?.id === userId) {
-    return currentUser.name || currentUser.email || userId;
+    return currentUser.name || `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.email || userId;
   }
   const user = users.find((item) => item.id === userId);
   if (user) return `${user.firstName} ${user.lastName}`.trim();
@@ -61,12 +108,13 @@ function getValidationMessage(error, fallback = 'Unable to save this comment.') 
   return getApiErrorMessage(error, fallback);
 }
 
-function TaskSelector({ id, value, initialTask, onChange, disabled }) {
+function TaskSelector({ id, label = 'Task', value, initialTask, onChange, disabled, required = true, placeholder = 'Search tasks by title' }) {
   const [search, setSearch] = useState('');
   const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(initialTask ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (String(initialTask?.id) === String(value)) {
@@ -127,124 +175,33 @@ function TaskSelector({ id, value, initialTask, onChange, disabled }) {
     ? [selectedTask, ...tasks]
     : tasks;
 
-  return (
-    <div className="project-field project-field-wide">
-      <label htmlFor={`${id}-search`}>Search tasks</label>
-      <input
-        id={`${id}-search`}
-        type="search"
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-        placeholder="Search by task title"
-        disabled={disabled}
-      />
-      <label htmlFor={id}>Task <span aria-hidden="true">*</span></label>
-      <select
-        id={id}
-        value={value}
-        onChange={(event) => {
-          const task = availableTasks.find((item) => String(item.id) === event.target.value) ?? null;
-          setSelectedTask(task);
-          onChange(event.target.value ? Number(event.target.value) : '', task);
-        }}
-        required
-        disabled={disabled || loading}
-      >
-        <option value="">{loading ? 'Loading tasks…' : 'Select a task'}</option>
-        {availableTasks.map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}
-      </select>
-      <ErrorMessage>{error}</ErrorMessage>
-    </div>
-  );
+  const matches = availableTasks.filter((task) => task.title.toLowerCase().includes(search.toLowerCase())).slice(0, 8);
+  return <div className="comment-task-combobox">
+    {label && <label htmlFor={id}>{label}{required && <> <span className="comment-required">*</span></>}</label>}
+    <input id={id} aria-label={label || 'Filter comments by task'} role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={`${id}-options`} value={String(value) === String(selectedTask?.id) ? selectedTask?.title ?? search : search} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)} onChange={(event) => { setSearch(event.target.value); setSelectedTask(null); onChange('', null); setOpen(true); }} placeholder={placeholder} disabled={disabled} required={required && !value} />
+    {open && <ul id={`${id}-options`} className="comment-task-options" role="listbox">
+      {loading ? <li>Loading tasks…</li> : matches.map((task) => <li key={task.id}><button type="button" role="option" aria-selected={String(task.id) === String(value)} onMouseDown={(event) => event.preventDefault()} onClick={() => { setSelectedTask(task); setSearch(task.title); setOpen(false); onChange(task.id, task); }}>{task.title}</button></li>)}
+      {!loading && !matches.length && <li>No tasks found.</li>}
+    </ul>}
+    {required && !value && <small className="comment-field-error">Select a task from the results.</small>}
+    {value && <button type="button" className="comment-task-clear" aria-label="Clear selected task" onClick={() => { setSearch(''); setSelectedTask(null); onChange('', null); }}>×</button>}
+    <ErrorMessage>{error}</ErrorMessage>
+  </div>;
 }
 
 function TaskFilter({ value, initialTask, onChange }) {
-  const [tasks, setTasks] = useState([]);
-  const [selectedTask, setSelectedTask] = useState(initialTask ?? null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (String(initialTask?.id) === String(value)) {
-      setSelectedTask(initialTask);
-    }
-  }, [initialTask, value]);
-
-  useEffect(() => {
-    if (!value || String(selectedTask?.id) === String(value)) {
-      return undefined;
-    }
-    let active = true;
-    getTask(value)
-      .then((task) => {
-        if (active) {
-          setSelectedTask(task);
-        }
-      })
-      .catch((requestError) => {
-        if (active) {
-          setError(getApiErrorMessage(requestError, 'Unable to load the selected task.'));
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [selectedTask?.id, value]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    getTasks({ page: 1, pageSize: 50, signal: controller.signal })
-      .then((result) => {
-        if (!controller.signal.aborted) {
-          setTasks(Array.isArray(result.items) ? result.items : []);
-        }
-      })
-      .catch((requestError) => {
-        if (!controller.signal.aborted && requestError.code !== 'ERR_CANCELED') {
-          setError(getApiErrorMessage(requestError, 'Unable to load tasks.'));
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      });
-    return () => controller.abort();
-  }, []);
-
-  const availableTasks = String(selectedTask?.id) === String(value) && !tasks.some((task) => String(task.id) === String(value))
-    ? [selectedTask, ...tasks]
-    : tasks;
-
-  return (
-    <label className="project-filter comment-task-filter">
-      <span>Task</span>
-      <select
-        aria-label="Filter comments by task"
-        value={value}
-        onChange={(event) => {
-          const task = availableTasks.find((item) => String(item.id) === event.target.value) ?? null;
-          setSelectedTask(task);
-          onChange(event.target.value ? Number(event.target.value) : '');
-        }}
-        disabled={loading}
-      >
-        <option value="">{loading ? 'Loading tasks…' : 'All tasks'}</option>
-        {availableTasks.map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}
-      </select>
-      {error && <span className="comment-filter-error">{error}</span>}
-    </label>
-  );
+  return <TaskSelector id="comments-task-filter" label="" value={value} initialTask={initialTask} required={false} placeholder="All tasks · search by title" onChange={(taskId) => onChange(taskId)} />;
 }
 
-function CommentForm({ comment, currentUser, onCancel, onSaved }) {
+function CommentForm({ comment, currentUser, users, onCancel, onSaved }) {
   const [form, setForm] = useState({ taskId: '', message: '' });
   const [selectedTask, setSelectedTask] = useState(null);
   const [commentUserId, setCommentUserId] = useState('');
   const [loadingComment, setLoadingComment] = useState(Boolean(comment));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const authorName = userLabel(commentUserId || currentUser?.id, currentUser, users);
+  const valid = Boolean(form.taskId && form.message.trim() && form.message.trim().length <= MAX_MESSAGE_LENGTH && currentUser?.id);
 
   useEffect(() => {
     let active = true;
@@ -317,13 +274,14 @@ function CommentForm({ comment, currentUser, onCancel, onSaved }) {
   }
 
   return (
-    <section className="project-form-card" aria-labelledby="comment-form-title">
+    <section className="comment-modal" role="dialog" aria-modal="true" aria-labelledby="comment-form-title">
       <div className="project-form-heading">
         <div>
           <p className="eyebrow">{comment ? 'Comment details' : 'New comment'}</p>
           <h2 id="comment-form-title">{comment ? 'Edit comment' : 'Create comment'}</h2>
         </div>
-        <button className="button button-secondary" type="button" onClick={onCancel} disabled={saving}>Cancel</button>
+        <div className="comment-modal-author"><span className="comment-avatar" aria-hidden="true">{initials(authorName)}</span><span>Commenting as <strong>{authorName}</strong></span></div>
+        <button className="comment-modal-close" type="button" aria-label="Close comment form" onClick={onCancel} disabled={saving}>×</button>
       </div>
       <ErrorMessage>{error}</ErrorMessage>
 
@@ -333,6 +291,7 @@ function CommentForm({ comment, currentUser, onCancel, onSaved }) {
         <form className="project-form" onSubmit={handleSubmit}>
           <TaskSelector
             id="comment-task"
+            label="Task"
             value={form.taskId}
             initialTask={selectedTask}
             onChange={(taskId, task) => {
@@ -343,7 +302,7 @@ function CommentForm({ comment, currentUser, onCancel, onSaved }) {
             disabled={saving}
           />
           <div className="project-field project-field-wide">
-            <label htmlFor="comment-message">Comment <span aria-hidden="true">*</span></label>
+            <label htmlFor="comment-message">Comment <span className="comment-required">*</span></label>
             <textarea
               id="comment-message"
               value={form.message}
@@ -356,14 +315,11 @@ function CommentForm({ comment, currentUser, onCancel, onSaved }) {
               required
               disabled={saving}
             />
+            {!form.message.trim() && <small className="comment-field-error">Comment text is required.</small>}
             <span className="comment-character-count">{form.message.length}/{MAX_MESSAGE_LENGTH}</span>
           </div>
-          <div className="project-field project-field-wide">
-            <span className="project-field-label">Created by</span>
-            <span>{userLabel(commentUserId || currentUser?.id, currentUser)}</span>
-          </div>
           <div className="project-form-actions project-field-wide">
-            <button className="button button-primary" type="submit" disabled={saving || !currentUser?.id}>
+            <button className="button button-primary" type="submit" disabled={saving || !valid}>
               {saving ? 'Saving…' : comment ? 'Save changes' : 'Create comment'}
             </button>
           </div>
@@ -393,6 +349,13 @@ function CommentsPage() {
   const [editingComment, setEditingComment] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+
+  useEffect(() => {
+    if (!formOpen) return undefined;
+    function closeOnEscape(event) { if (event.key === 'Escape') setFormOpen(false); }
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [formOpen]);
 
   useEffect(() => {
     if (!canManage) return undefined;
@@ -478,6 +441,14 @@ function CommentsPage() {
     setFormOpen(true);
   }
 
+  function clearFilters() {
+    setSearchInput('');
+    setSearch('');
+    setTaskId('');
+    setUserId('');
+    setPage(1);
+  }
+
   async function handleSaved(message) {
     setFormOpen(false);
     setEditingComment(null);
@@ -527,35 +498,36 @@ function CommentsPage() {
         )}
       </div>
 
-      {notice && <div className="project-notice" role="status">{notice}</div>}
+      {notice && <div className="comments-toast" role="status">{notice}</div>}
       {!currentUser?.id && (
         <ErrorMessage>Your signed-in user details are unavailable, so comments cannot be created.</ErrorMessage>
       )}
 
       {formOpen && (
+        <div className="comment-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) { setFormOpen(false); setEditingComment(null); } }}>
         <CommentForm
           key={editingComment?.id ?? 'new'}
           comment={editingComment}
           currentUser={currentUser}
+          users={users}
           onCancel={() => {
             setFormOpen(false);
             setEditingComment(null);
           }}
           onSaved={handleSaved}
         />
+        </div>
       )}
 
-      <div className="projects-toolbar task-toolbar">
-        <label className="project-search">
-          <span>Search comments</span>
+      <div className="comments-toolbar">
           <input
+            className="comments-search"
             type="search"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
             placeholder="Search comment, task, or user"
             aria-label="Search comments by text, task, or user"
           />
-        </label>
         <TaskFilter
           value={taskId}
           initialTask={taskDetails[taskId]}
@@ -565,23 +537,21 @@ function CommentsPage() {
           }}
         />
         {canManage && (
-          <label className="project-filter">
-            <span>Created by</span>
-            <select
+            <select aria-label="Filter comments by author"
               value={userId}
               onChange={(event) => {
                 setUserId(event.target.value);
                 setPage(1);
               }}
             >
-              <option value="">All users</option>
+              <option value="">All authors</option>
               {userIds.map((id) => (
                 <option key={id} value={id}>{userLabel(id, currentUser, users)}</option>
               ))}
             </select>
-          </label>
         )}
-        <span className="project-count">{totalCount} {totalCount === 1 ? 'comment' : 'comments'}</span>
+        <span className="project-count">{loading || searchInput.trim() !== search ? 'Loading…' : `Showing ${totalCount ? (page - 1) * PAGE_SIZE + 1 : 0}-${Math.min(page * PAGE_SIZE, totalCount)} of ${totalCount}`}</span>
+        {(search || taskId || userId) && <button className="comments-clear" type="button" onClick={clearFilters}>Clear filters</button>}
       </div>
 
       <ErrorMessage>{listError}</ErrorMessage>
@@ -591,14 +561,23 @@ function CommentsPage() {
         <div className="project-state" role="status">Loading comments…</div>
       ) : listError ? null : comments.length === 0 ? (
         <div className="project-state project-empty">
-          <h2>{search || taskId || userId ? 'No matching comments' : 'No comments yet'}</h2>
+          <h2>{search || taskId || userId ? 'No comments match your filters' : 'No comments yet'}</h2>
           <p>{search || taskId || userId ? 'Try changing your search or filters.' : 'Add a comment to a task to get started.'}</p>
+          {(search || taskId || userId) && <button className="button button-secondary" type="button" onClick={clearFilters}>Clear filters</button>}
           {!search && !taskId && !userId && !formOpen && currentUser?.id && (
             <button className="button button-secondary" type="button" onClick={openCreateForm}>Create your first comment</button>
           )}
         </div>
       ) : (
-        <div className="task-table-wrap">
+        <>
+        <div className="comments-feed">
+          {comments.map((comment) => {
+            const author = comment.userName || userLabel(comment.userId, currentUser, users);
+            const canEdit = String(currentUser?.role).toLowerCase() === 'admin' || String(comment.userId) === String(currentUser?.id);
+            return <CommentFeedCard key={comment.id} comment={comment} task={taskDetails[comment.taskId]} author={author} canEdit={canEdit} onEdit={openEditForm} onDelete={handleDelete} deleting={deletingId === comment.id} />;
+          })}
+        </div>
+        <div className="comments-legacy-table">
           <table className="task-table comment-table">
             <thead>
               <tr>
@@ -631,15 +610,8 @@ function CommentsPage() {
                     </td>
                     <td data-label="Actions">
                       {canManage && <div className="task-row-actions">
-                        <button className="button button-secondary" type="button" onClick={() => openEditForm(comment)}>Edit</button>
-                        <button
-                          className="button button-danger"
-                          type="button"
-                          onClick={() => handleDelete(comment)}
-                          disabled={deletingId === comment.id}
-                        >
-                          {deletingId === comment.id ? 'Deleting…' : 'Delete'}
-                        </button>
+                        <button className="user-icon-button" type="button" aria-label="Edit comment" title="Edit comment" onClick={() => openEditForm(comment)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button>
+                        <button className="user-icon-button" type="button" aria-label={deletingId === comment.id ? 'Deleting comment' : 'Delete comment'} title="Delete comment" onClick={() => handleDelete(comment)} disabled={deletingId === comment.id}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></button>
                       </div>}
                     </td>
                   </tr>
@@ -648,6 +620,7 @@ function CommentsPage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       <nav className="project-pagination" aria-label="Comment pages">

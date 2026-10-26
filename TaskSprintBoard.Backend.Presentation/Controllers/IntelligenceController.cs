@@ -31,4 +31,12 @@ public class IntelligenceController : ControllerBase
             return BadRequest(new { success = false, message = ex.Message, errors = new[] { ex.Message } });
         }
     }
+
+    [HttpGet("tasks/{taskId:int}/latest")]
+    [Authorize(Roles = "Admin,ProjectManager")]
+    public async Task<IActionResult> GetLatest(int taskId)
+    {
+        var result = await _aiRiskService.GetLatestAsync(taskId);
+        return result == null ? NoContent() : Ok(result);
+    }
 }
