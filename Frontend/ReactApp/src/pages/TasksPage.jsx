@@ -605,7 +605,7 @@ function TasksPage() {
   const [lookupError, setLookupError] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState({ projectId: '', sprintId: '', status: '', priority: '', dueDatePreset: '', isBlocked: '' });
+  const [filters, setFilters] = useState({ projectId: '', sprintId: '', status: '', priority: '', dueDatePreset: '' });
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -738,7 +738,7 @@ function TasksPage() {
   function clearFilters() {
     setSearchInput('');
     setSearch('');
-    setFilters({ projectId: '', sprintId: '', status: '', priority: '', dueDatePreset: '', isBlocked: '' });
+    setFilters({ projectId: '', sprintId: '', status: '', priority: '', dueDatePreset: '' });
     setPage(1);
   }
 
@@ -749,8 +749,7 @@ function TasksPage() {
     sprintId: ['Sprint', listSprints.get(Number(filters.sprintId))?.name],
     status: ['Status', ({ Todo: 'To Do', InProgress: 'In Progress', Done: 'Completed' })[filters.status] || filters.status],
     priority: ['Priority', filters.priority],
-    dueDatePreset: ['Due date', ({ overdue: 'Overdue', today: 'Due today', thisWeek: 'Due this week', noDueDate: 'No due date' })[filters.dueDatePreset]],
-    isBlocked: ['Blocked', filters.isBlocked === 'true' ? 'Blocked only' : 'Not blocked']
+    dueDatePreset: ['Due date', ({ overdue: 'Overdue', today: 'Due today', thisWeek: 'Due this week', noDueDate: 'No due date' })[filters.dueDatePreset]]
   };
   const activeFilters = Object.entries(filterLabels).filter(([key, [, value]]) => Boolean(filters[key] && value));
 
@@ -869,7 +868,6 @@ function TasksPage() {
             <button className="tasks-more-button" type="button" aria-expanded={moreFiltersOpen} onClick={() => setMoreFiltersOpen((open) => !open)}>More filters</button>
             {moreFiltersOpen && <div className="tasks-more-popover">
               <label>Due date<select value={filters.dueDatePreset} onChange={(event) => updateFilter('dueDatePreset', event.target.value)}><option value="">Any time</option><option value="overdue">Overdue</option><option value="today">Due today</option><option value="thisWeek">Due this week</option><option value="noDueDate">No due date</option></select></label>
-              <label>Blocked<select value={filters.isBlocked} onChange={(event) => updateFilter('isBlocked', event.target.value)}><option value="">All</option><option value="true">Blocked only</option></select></label>
             </div>}
           </div>
         </div>

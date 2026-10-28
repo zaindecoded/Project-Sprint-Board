@@ -2643,7 +2643,7 @@ h1, h2, h3, .dashboard-panel-heading h2, .project-card h2 { color: var(--color-t
 .comment-delete-icon:hover:not(:disabled) { border-color: #fecaca; color: #dc2626; background: #fef2f2; }
 .comment-task-chip { display: inline-flex; max-width: 100%; margin: 12px 0 4px 46px; padding: 4px 9px; overflow: hidden; border-radius: 999px; color: #4f46e5; background: #eef2ff; font-size: 12px; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
 .comment-task-chip:hover { background: #e0e7ff; }
-.comment-feed-message { display: -webkit-box; margin: 8px 0 0 46px; overflow: hidden; color: #1f2937; line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.comment-feed-message { display: -webkit-box; margin: 8px 0 0 46px; overflow: hidden; color: #1f2937; line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; }
 .comment-feed-message-expanded { display: block; overflow: visible; }
 .comment-show-toggle { margin: 6px 0 0 46px; padding: 0; border: 0; color: #4f46e5; background: transparent; font-size: 13px; font-weight: 600; cursor: pointer; }
 .comments-legacy-table { display: none; }
