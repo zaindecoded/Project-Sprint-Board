@@ -44,8 +44,9 @@ public class AiRiskService
             CurrentStatus = task.Status,
             NumberOfStatusChanges = (await _historyRepository.GetByTaskIdAsync(task.Id)).Count()
         };
+        var remainingHours = input.EstimateHours * (100 - input.ProgressPercentage) / 100m;
 
-        var score = CalculateRiskScore(input);
+        var score = CalculateRiskScore(input, remainingHours);
         var level = score switch
         {
             >= 70 => "High",
@@ -57,9 +58,10 @@ public class AiRiskService
         if (input.IsBlocked) riskFactors.Add("Task is blocked");
         if (input.ProgressPercentage < 35) riskFactors.Add("Low progress");
         if (input.DaysRemaining < 0) riskFactors.Add("Past due date");
+        else if (input.DaysRemaining <= 1) riskFactors.Add("Due today or tomorrow");
         else if (input.DaysRemaining <= 3) riskFactors.Add("Due date approaching");
         if (input.NumberOfStatusChanges > 2) riskFactors.Add("Multiple status changes");
-        if (input.EstimateHours > 20) riskFactors.Add("Large remaining workload");
+        if (remainingHours > 20) riskFactors.Add("Large remaining workload");
         if (input.Priority is "Medium" or "High" or "Critical") riskFactors.Add($"{input.Priority} priority");
 
         var explanation = string.Join("; ", riskFactors.Count > 0 ? riskFactors : ["Healthy delivery outlook"]);
@@ -116,16 +118,17 @@ public class AiRiskService
         };
     }
 
-    private static decimal CalculateRiskScore(AiRiskEvaluationInputDto dto)
+    private static decimal CalculateRiskScore(AiRiskEvaluationInputDto dto, decimal remainingHours)
     {
         decimal score = 0m;
 
         if (dto.IsBlocked) score += 25m;
         if (dto.ProgressPercentage < 35) score += 20m;
         if (dto.DaysRemaining < 0) score += 25m;
+        else if (dto.DaysRemaining <= 1) score += 25m;
         else if (dto.DaysRemaining <= 3) score += 15m;
         if (dto.NumberOfStatusChanges > 2) score += 15m;
-        if (dto.EstimateHours > 20) score += 20m;
+        if (remainingHours > 20) score += 20m;
 
         score += dto.Priority switch
         {
