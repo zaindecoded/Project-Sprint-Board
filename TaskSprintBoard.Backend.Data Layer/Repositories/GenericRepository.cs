@@ -55,16 +55,4 @@ public class GenericRepository<T> where T : BaseEntity
         await Context.SaveChangesAsync();
     }
 
-    public virtual async Task DeleteAsync(int id)
-    {
-        var entity = await DbSet.FirstOrDefaultAsync(x => x.Id == id);
-        if (entity != null)
-        {
-            entity.IsDeleted = true;
-            entity.IsActive = false;
-            entity.UpdatedAt = DateTime.UtcNow;
-            DbSet.Update(entity);
-            await Context.SaveChangesAsync();
-        }
-    }
 }

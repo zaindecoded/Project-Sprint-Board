@@ -79,12 +79,4 @@ public class CommentRepository : GenericRepository<Comment>
             .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
     }
 
-    public async Task<IEnumerable<Comment>> GetByTaskIdAsync(int taskId)
-    {
-        return await DbSet.AsNoTracking()
-            .Include(x => x.User)
-            .Where(x => x.TaskId == taskId && !x.IsDeleted)
-            .OrderByDescending(x => x.CreatedAt)
-            .ToListAsync();
-    }
 }
