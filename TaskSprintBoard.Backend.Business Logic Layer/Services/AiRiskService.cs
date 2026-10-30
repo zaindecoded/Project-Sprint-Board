@@ -32,6 +32,9 @@ public class AiRiskService
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var daysRemaining = DateOnly.FromDateTime(task.DueDate.Value).DayNumber - today.DayNumber;
+        if (daysRemaining < 0)
+            throw new InvalidOperationException("Overdue tasks cannot be evaluated for delivery risk.");
+
         var input = new AiRiskEvaluationInputDto
         {
             TaskId = task.Id,

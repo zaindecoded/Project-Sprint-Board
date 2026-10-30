@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ErrorMessage from '../components/ErrorMessage';
+import ActiveFilterChips from '../components/ActiveFilterChips';
 import { getProjects } from '../services/projectApi';
 import { getSprint, getSprints } from '../services/sprintApi';
 import { getTaskStatusHistory } from '../services/statusHistoryApi';
@@ -187,6 +188,7 @@ function TaskRiskPanel({ task, onClose, onEvaluatingChange }) {
   const [error, setError] = useState('');
   const requestController = useRef(null);
   const hasDueDate = Boolean(task.dueDate);
+  const isOverdue = getTaskDisplayStatus(task) === 'Overdue';
 
   useEffect(() => {
     const controller = new AbortController();
@@ -205,7 +207,7 @@ function TaskRiskPanel({ task, onClose, onEvaluatingChange }) {
   }, [task.id]);
 
   async function handleEvaluate() {
-    if (evaluating || !hasDueDate) {
+    if (evaluating || !hasDueDate || isOverdue) {
       return;
     }
 
@@ -265,10 +267,10 @@ function TaskRiskPanel({ task, onClose, onEvaluatingChange }) {
 
       {loadingResult ? <p>Loading saved evaluation...</p> : !result ? (
         <div className="task-risk-initial">
-          <p>{hasDueDate ? 'Risk has not been evaluated yet.' : 'Add a due date before evaluating risk.'}</p>
-          <button className="button button-primary" type="button" onClick={handleEvaluate} disabled={evaluating || !hasDueDate}>
+          <p>{isOverdue ? 'Risk evaluation is unavailable for overdue tasks.' : hasDueDate ? 'Risk has not been evaluated yet.' : 'Add a due date before evaluating risk.'}</p>
+          {!isOverdue && <button className="button button-primary" type="button" onClick={handleEvaluate} disabled={evaluating || !hasDueDate}>
             {evaluating ? 'Evaluating risk...' : 'Evaluate risk'}
-          </button>
+          </button>}
         </div>
       ) : (
         <div className="task-risk-result">
@@ -281,15 +283,9 @@ function TaskRiskPanel({ task, onClose, onEvaluatingChange }) {
               <span className="task-risk-label">Risk score</span>
               <strong>{result.riskScore} / 100</strong>
             </div>
-            <div>
-              <span className="task-risk-label">Confidence</span>
-              <strong>{new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 0 }).format(Number(result.confidence) || 0)}</strong>
-            </div>
-            <div>
-              <span className="task-risk-label">Evaluated at</span>
-              <strong>{formatDateTime(result.timestamp)}</strong>
-            </div>
           </div>
+          <p className="task-risk-advisory">Rule-based estimate from progress, due date, priority, and task history.</p>
+          <p className="task-risk-evaluated-at"><span className="task-risk-label">Evaluated at</span> {formatDateTime(result.timestamp)}</p>
           <div className="task-risk-explanation">
             <h3>Risk factors</h3>
             {riskFactors.length ? (
@@ -297,9 +293,11 @@ function TaskRiskPanel({ task, onClose, onEvaluatingChange }) {
             ) : <p>No risk factors were returned.</p>}
             
           </div>
-          <button className="button button-secondary" type="button" onClick={handleEvaluate} disabled={evaluating}>
-            {evaluating ? 'Evaluating risk...' : 'Evaluate again'}
-          </button>
+          {isOverdue
+            ? <p className="task-risk-advisory">Risk evaluations are unavailable for overdue tasks.</p>
+            : <button className="button button-secondary" type="button" onClick={handleEvaluate} disabled={evaluating}>
+              {evaluating ? 'Evaluating risk...' : 'Evaluate again'}
+            </button>}
         </div>
       )}
     </section>
@@ -317,7 +315,7 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
   const selectedSprint = sprints.find((item) => String(item.id) === String(form.sprintId))
     ?? (String(existingSprint?.id) === String(form.sprintId) ? existingSprint : null);
   const sprintEndDate = selectedSprint?.endDate ? dateInputValue(selectedSprint.endDate) : '';
-  const valid = Boolean(form.projectId && form.sprintId && form.title.trim() && Number(form.estimateHours) > 0 && (!form.startDate || !form.dueDate || form.dueDate >= form.startDate) && (!task || (Number.isInteger(Number(form.progressPercentage)) && Number(form.progressPercentage) >= 0 && Number(form.progressPercentage) <= 100)));
+  const valid = Boolean(form.projectId && form.sprintId && form.title.trim() && form.dueDate && Number(form.estimateHours) > 0 && (!form.startDate || form.dueDate >= form.startDate) && (!task || (Number.isInteger(Number(form.progressPercentage)) && Number(form.progressPercentage) >= 0 && Number(form.progressPercentage) <= 100)));
 
   useEffect(() => {
     let active = true;
@@ -406,6 +404,10 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
   async function handleSubmit(event) {
     event.preventDefault();
     if (saving) {
+      return;
+    }
+    if (!form.dueDate) {
+      setError('Task due date is required.');
       return;
     }
     if (!task) {
@@ -500,7 +502,7 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
           <div className="project-field">
             <label htmlFor="task-project">Project <span className="task-required" aria-hidden="true">*</span></label>
             <select id="task-project" name="projectId" value={form.projectId} onChange={changeField} required disabled={saving}>
-              <option value="">Select a project</option>
+              <option value="">Select </option>
               {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
             </select>
             {!form.projectId && <small className="task-field-error">Select a project.</small>}
@@ -526,7 +528,7 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
           <div className="project-field project-field-wide">
             <label htmlFor="task-title">Title <span className="task-required" aria-hidden="true">*</span></label>
             <input id="task-title" name="title" value={form.title} onChange={changeField} maxLength={200} required disabled={saving} />
-            {!form.title.trim() && <small className="task-field-error">Title is required.</small>}
+            {!form.title.trim() && <small className="task-field-error"></small>}
           </div>
           <div className="project-field project-field-wide">
             <label htmlFor="task-description">Description</label>
@@ -548,7 +550,7 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
           <div className="project-field">
             <label htmlFor="task-estimate">Estimate (hours) <span className="task-required" aria-hidden="true">*</span></label>
             <input id="task-estimate" name="estimateHours" type="number" min="0.01" step="0.01" value={form.estimateHours} onChange={changeField} required disabled={saving} />
-            {(!form.estimateHours || Number(form.estimateHours) <= 0) && <small className="task-field-error">Enter a positive estimate.</small>}
+            {(!form.estimateHours || Number(form.estimateHours) <= 0) && <small className="task-field-error"></small>}
           </div>
           {task && <div className="project-field">
             <label htmlFor="task-progress">Progress (%)</label>
@@ -567,17 +569,19 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
             />
           </div>
           <div className="project-field">
-            <label htmlFor="task-due-date">Due date</label>
+            <label htmlFor="task-due-date">Due date <span className="task-required" aria-hidden="true">*</span></label>
             <input
               id="task-due-date"
               name="dueDate"
               type="date"
               value={form.dueDate}
               onChange={changeField}
+              required
               max={sprintEndDate || undefined}
               min={!task ? (form.startDate > getTodayDateInputValue() ? form.startDate : getTodayDateInputValue()) : (form.startDate || undefined)}
               disabled={saving}
             />
+            {!form.dueDate && <small className="task-field-error"></small>}
             {form.startDate && form.dueDate && form.dueDate < form.startDate && <small className="task-field-error">Due date must be on or after the start date.</small>}
           </div>
           {form.status === 'Blocked' && <><h3 className="task-form-section">Blocker</h3><div className="project-field project-field-wide">
@@ -749,7 +753,7 @@ function TasksPage() {
     sprintId: ['Sprint', listSprints.get(Number(filters.sprintId))?.name],
     status: ['Status', ({ Todo: 'To Do', InProgress: 'In Progress', Done: 'Completed' })[filters.status] || filters.status],
     priority: ['Priority', filters.priority],
-    dueDatePreset: ['Due date', ({ overdue: 'Overdue', today: 'Due today', thisWeek: 'Due this week', noDueDate: 'No due date' })[filters.dueDatePreset]]
+    dueDatePreset: ['Due date', ({ overdue: 'Overdue', today: 'Due today', thisWeek: 'Due this week' })[filters.dueDatePreset]]
   };
   const activeFilters = Object.entries(filterLabels).filter(([key, [, value]]) => Boolean(filters[key] && value));
 
@@ -867,18 +871,17 @@ function TasksPage() {
           <div className="tasks-more-wrap">
             <button className="tasks-more-button" type="button" aria-expanded={moreFiltersOpen} onClick={() => setMoreFiltersOpen((open) => !open)}>More filters</button>
             {moreFiltersOpen && <div className="tasks-more-popover">
-              <label>Due date<select value={filters.dueDatePreset} onChange={(event) => updateFilter('dueDatePreset', event.target.value)}><option value="">Any time</option><option value="overdue">Overdue</option><option value="today">Due today</option><option value="thisWeek">Due this week</option><option value="noDueDate">No due date</option></select></label>
+              <label>Due date<select value={filters.dueDatePreset} onChange={(event) => updateFilter('dueDatePreset', event.target.value)}><option value="">Any time</option><option value="overdue">Overdue</option><option value="today">Due today</option><option value="thisWeek">Due this week</option></select></label>
             </div>}
           </div>
         </div>
-        <span className="project-count">{loading || searchInput.trim() !== search ? 'Loading tasks…' : `Showing ${totalCount ? (page - 1) * PAGE_SIZE + 1 : 0}-${Math.min(page * PAGE_SIZE, totalCount)} of ${totalCount}`}</span>
+        <span className="project-count">{loading || searchInput.trim() !== search ? 'Loading tasks…' : `${totalCount ? (page - 1) * PAGE_SIZE + 1 : 0}-${Math.min(page * PAGE_SIZE, totalCount)} of ${totalCount}`}</span>
       </div>
 
-      {(activeFilters.length > 0 || search) && <div className="tasks-active-filters" aria-label="Active filters">
-        {search && <button type="button" className="tasks-filter-chip" onClick={() => { setSearchInput(''); setSearch(''); setPage(1); }}>Search: {search} <span aria-hidden="true">×</span></button>}
-        {activeFilters.map(([key, [label, value]]) => <button key={key} type="button" className="tasks-filter-chip" onClick={() => updateFilter(key, '')}>{label}: {value} <span aria-hidden="true">×</span></button>)}
-        <button type="button" className="tasks-clear-filters" onClick={clearFilters}>Clear all</button>
-      </div>}
+      <ActiveFilterChips filters={[
+        ...(search ? [{ key: 'search', label: 'Search', value: search, onRemove: () => { setSearchInput(''); setSearch(''); setPage(1); } }] : []),
+        ...activeFilters.map(([key, [label, value]]) => ({ key, label, value, onRemove: () => updateFilter(key, '') }))
+      ]} onClearAll={clearFilters} />
 
       {!lookupsLoading && projects.length === 0 && !lookupError && canManage && (
         <div className="project-notice">Create a project and sprint before adding tasks.</div>
@@ -939,7 +942,7 @@ function TasksPage() {
                         >
                           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5m4-1v5l3 2"/></svg>
                         </button>
-                        {canManage && !['done', 'cancelled'].includes(String(task.status).toLowerCase()) && <button
+                        {canManage && getTaskDisplayStatus(task) !== 'Overdue' && !['done', 'cancelled'].includes(String(task.status).toLowerCase()) && <button
                           className="user-icon-button"
                           type="button"
                           aria-label={riskTask?.id === task.id ? 'Hide risk evaluation' : 'Evaluate task risk'}

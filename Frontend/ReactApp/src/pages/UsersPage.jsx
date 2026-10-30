@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import ErrorMessage from '../components/ErrorMessage';
+import ActiveFilterChips from '../components/ActiveFilterChips';
 import { getApiErrorMessage } from '../services/apiErrors';
 import { activateUser, createUser, deleteUser, getUsers, updateUser } from '../services/userApi';
 import { useAuth } from '../context/AuthContext';
@@ -229,9 +230,14 @@ function UsersPage() {
           <label><span>Search</span><input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Name, email, or username" /></label>
           <label><span>Role</span><select value={roleFilter} onChange={(event) => { setRoleFilter(event.target.value); setPage(1); }}><option value="">All roles</option><option value="Admin">Admin</option><option value="ProjectManager">Project Manager</option><option value="TeamMember">Team Member</option></select></label>
           <label><span>Status</span><select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}><option value="">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
-          <span className="users-range">Showing {showingFrom}-{showingTo} of {filteredUsers.length}</span>
+          <span className="users-range">{showingFrom}-{showingTo} of {filteredUsers.length}</span>
         </div>
-        {loadingUsers ? <p role="status">Loading users…</p> : filteredUsers.length === 0 ? <div className="users-empty"><p>{users.length ? 'No users match these filters.' : 'No users found.'}</p>{users.length > 0 && <button className="button button-secondary" type="button" onClick={() => { setSearch(''); setRoleFilter(''); setStatusFilter(''); setPage(1); }}>Clear filters</button>}</div> : (
+        <ActiveFilterChips filters={[
+          ...(search.trim() ? [{ key: 'search', label: 'Search', value: search.trim(), onRemove: () => { setSearch(''); setPage(1); } }] : []),
+          ...(roleFilter ? [{ key: 'role', label: 'Role', value: roleFilter === 'ProjectManager' ? 'Project Manager' : roleFilter === 'TeamMember' ? 'Team Member' : roleFilter, onRemove: () => { setRoleFilter(''); setPage(1); } }] : []),
+          ...(statusFilter ? [{ key: 'status', label: 'Status', value: statusFilter === 'active' ? 'Active' : 'Inactive', onRemove: () => { setStatusFilter(''); setPage(1); } }] : [])
+        ]} onClearAll={() => { setSearch(''); setRoleFilter(''); setStatusFilter(''); setPage(1); }} />
+        {loadingUsers ? <p role="status">Loading users…</p> : filteredUsers.length === 0 ? <div className="users-empty"><p>{users.length ? 'No users match these filters.' : 'No users found.'}</p></div> : (
           <div className="task-table-wrap">
             <table className="task-table users-table">
               <thead><tr><th>Name</th><th>Email</th><th>Username</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>

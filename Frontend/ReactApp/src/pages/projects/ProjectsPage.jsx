@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ErrorMessage from '../../components/ErrorMessage';
+import ActiveFilterChips from '../../components/ActiveFilterChips';
 import { useAuth } from '../../context/AuthContext';
 import { createProject, deleteProject, getProject, getProjects, updateProject } from '../../services/projectApi';
 import { getApiErrorMessage } from '../../services/apiErrors';
@@ -184,7 +185,7 @@ function ProjectForm({ project, onCancel, onSaved }) {
               maxLength={200}
               disabled={saving}
             />
-            {!nameValid && <span className="project-field-error">Project name is required.</span>}
+            {!nameValid && <span className="project-field-error"></span>}
           </div>
           <div className="project-field project-field-wide">
             <label htmlFor="project-description">Description</label>
@@ -385,8 +386,13 @@ function ProjectsPage() {
         </label>
         <label className="project-filter"><span>Status</span><select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}><option value="">All statuses</option><option value="Active">Active</option><option value="Completed">Completed</option><option value="Planned">Planned</option><option value="OnHold">On hold</option><option value="Cancelled">Cancelled</option></select></label>
         <label className="project-filter"><span>Sort by</span><select value={sortBy} onChange={(event) => { setSortBy(event.target.value); setPage(1); }}><option value="newest">Newest</option><option value="name">Name A–Z</option><option value="endDate">End date</option></select></label>
-        <span className="project-count">Showing {totalCount ? (page - 1) * PAGE_SIZE + 1 : 0}-{Math.min(page * PAGE_SIZE, totalCount)} of {totalCount}</span>
+        <span className="project-count">{totalCount ? (page - 1) * PAGE_SIZE + 1 : 0}-{Math.min(page * PAGE_SIZE, totalCount)} of {totalCount}</span>
       </div>
+
+      <ActiveFilterChips filters={[
+        ...(search ? [{ key: 'search', label: 'Search', value: search, onRemove: () => { setSearchInput(''); setSearch(''); setPage(1); } }] : []),
+        ...(status ? [{ key: 'status', label: 'Status', value: status, onRemove: () => { setStatus(''); setPage(1); } }] : [])
+      ]} onClearAll={() => { setSearchInput(''); setSearch(''); setStatus(''); setSortBy('newest'); setPage(1); }} />
 
       <ErrorMessage>{listError}</ErrorMessage>
 
@@ -396,7 +402,6 @@ function ProjectsPage() {
         <div className="project-state project-empty">
           <h2>{search || status ? 'No matching projects' : 'No projects yet'}</h2>
           <p>{search || status ? 'Try adjusting your search or filters.' : 'Create a project to get started.'}</p>
-          {(search || status) && <button className="button button-secondary" type="button" onClick={() => { setSearchInput(''); setSearch(''); setStatus(''); setSortBy('newest'); setPage(1); }}>Clear filters</button>}
           {!search && !status && canManage && !formOpen && (
             <button className="button button-secondary" type="button" onClick={openCreateForm}>
               Create your first project

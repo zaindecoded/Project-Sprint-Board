@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import ErrorMessage from '../components/ErrorMessage';
+import ActiveFilterChips from '../components/ActiveFilterChips';
 import { getApiErrorMessage } from '../services/apiErrors';
 import { getAuditLogFilters, getAuditLogs } from '../services/auditLogApi';
 import '../styles/audit-log.css';
@@ -84,6 +85,12 @@ function AuditLogPage() {
         </label>
       </div>
 
+      <ActiveFilterChips filters={[
+        ...(query ? [{ key: 'search', label: 'Search', value: query, onRemove: () => { setSearch(''); setQuery(''); setPage(1); } }] : []),
+        ...(action ? [{ key: 'action', label: 'Action', value: action, onRemove: () => { setAction(''); setPage(1); } }] : []),
+        ...(entity ? [{ key: 'entity', label: 'Entity', value: entity, onRemove: () => { setEntity(''); setPage(1); } }] : [])
+      ]} onClearAll={() => { setSearch(''); setQuery(''); setAction(''); setEntity(''); setPage(1); }} />
+
       {error && <ErrorMessage message={error} />}
       <div className="audit-table-wrap">
         <table className="audit-table">
@@ -104,7 +111,7 @@ function AuditLogPage() {
       </div>
 
       <footer className="audit-pagination">
-        <span>{result ? `Showing ${start}–${end} of ${result.totalCount}` : ' '}</span>
+        <span>{result ? `${start}–${end} of ${result.totalCount}` : ' '}</span>
         <div><button type="button" disabled={loading || page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</button>
           <span>Page {page}{totalPages ? ` of ${totalPages}` : ''}</span>
           <button type="button" disabled={loading || page >= totalPages} onClick={() => setPage((value) => value + 1)}>Next</button></div>

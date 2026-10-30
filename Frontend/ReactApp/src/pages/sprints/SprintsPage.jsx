@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import ErrorMessage from '../../components/ErrorMessage';
+import ActiveFilterChips from '../../components/ActiveFilterChips';
 import { useAuth } from '../../context/AuthContext';
 import { deleteSprint, getSprint, getSprints, createSprint, updateSprint } from '../../services/sprintApi';
 import { getProjects } from '../../services/projectApi';
@@ -215,7 +216,7 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
                 <option key={project.id} value={project.id}>{project.name}</option>
               ))}
             </select>
-            {!form.projectId && <small className="sprint-field-error">Choose a project.</small>}
+            {!form.projectId && <small className="sprint-field-error"></small>}
           </div>
           <div className="project-field project-field-wide">
             <label htmlFor="sprint-name">Sprint name <span className="sprint-required">*</span></label>
@@ -228,7 +229,7 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
               required
               disabled={saving}
             />
-            {!form.name.trim() && <small className="sprint-field-error">Sprint name is required.</small>}
+            {!form.name.trim() && <small className="sprint-field-error"></small>}
           </div>
           <div className="project-field">
             <label htmlFor="sprint-start-date">Start date <span className="sprint-required">*</span></label>
@@ -257,7 +258,7 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
               required
               disabled={saving}
             />
-            {!form.endDate ? <small className="sprint-field-error">End date is required.</small> : datesError ? <small className="sprint-field-error">{datesError}</small> : null}
+            {!form.endDate ? <small className="sprint-field-error"></small> : datesError ? <small className="sprint-field-error">{datesError}</small> : null}
           </div>
           <div className="project-field project-field-wide">
             <label htmlFor="sprint-goal">Goal</label>
@@ -483,8 +484,14 @@ function SprintsPage() {
           </select>
         </label>
         <label className="project-filter"><span>Status</span><select value={status} onChange={(event) => { setPage(1); setStatus(event.target.value); }}><option value="">All statuses</option><option value="Planned">Planned</option><option value="Active">Active</option><option value="Completed">Completed</option></select></label>
-        <span className="project-count">{loading || searchInput.trim() !== search ? 'Loading sprints…' : `Showing ${totalCount ? (page - 1) * PAGE_SIZE + 1 : 0}-${Math.min(page * PAGE_SIZE, totalCount)} of ${totalCount}`}</span>
+        <span className="project-count">{loading || searchInput.trim() !== search ? 'Loading sprints…' : `${totalCount ? (page - 1) * PAGE_SIZE + 1 : 0}-${Math.min(page * PAGE_SIZE, totalCount)} of ${totalCount}`}</span>
       </div>
+
+      <ActiveFilterChips filters={[
+        ...(search ? [{ key: 'search', label: 'Search', value: search, onRemove: () => { setSearchInput(''); setSearch(''); setPage(1); } }] : []),
+        ...(projectId ? [{ key: 'project', label: 'Project', value: projectNames.get(Number(projectId)) || `Project ${projectId}`, onRemove: () => { setProjectId(''); setPage(1); } }] : []),
+        ...(status ? [{ key: 'status', label: 'Status', value: status, onRemove: () => { setStatus(''); setPage(1); } }] : [])
+      ]} onClearAll={() => { setSearchInput(''); setSearch(''); setProjectId(''); setStatus(''); setPage(1); }} />
 
       {!projectsLoading && projects.length === 0 && !projectsError && canManage && (
         <div className="project-notice">Create a project before adding sprints.</div>
@@ -497,7 +504,6 @@ function SprintsPage() {
         <div className="project-state project-empty">
           <h2>{search || projectId || status ? 'No matching sprints' : 'No sprints yet'}</h2>
           <p>{search || projectId || status ? 'Try changing the search or filters.' : canManage ? 'Create a sprint to get started.' : 'No sprints are available yet.'}</p>
-          {(search || projectId || status) && <button className="button button-secondary" type="button" onClick={() => { setSearchInput(''); setSearch(''); setProjectId(''); setStatus(''); setPage(1); }}>Clear filters</button>}
           {!search && !projectId && !status && projects.length > 0 && canManage && !formOpen && (
             <button className="button button-secondary" type="button" onClick={openCreateForm}>
               Create your first sprint

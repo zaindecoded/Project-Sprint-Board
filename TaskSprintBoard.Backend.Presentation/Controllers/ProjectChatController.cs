@@ -227,7 +227,7 @@ public class ProjectChatController : ControllerBase
     private static string ListTasks(List<TaskItem> tasks, string empty = "No matching tasks found.")
     {
         if (tasks.Count == 0) return empty;
-        var heading = tasks.Count > 20 ? $"Showing 20 of {tasks.Count} tasks.\n" : string.Empty;
+        var heading = tasks.Count > 20 ? $"20 of {tasks.Count} tasks.\n" : string.Empty;
         return heading + string.Join("\n", tasks.Take(20).Select(x =>
         {
             var assignees = x.Assignments.Where(a => a.IsActive && !a.IsDeleted && a.User.IsActive && !a.User.IsDeleted)

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace TaskSprintBoard.Backend.BusinessLogic.DTOs;
 
 public class TaskCreateDto
@@ -10,6 +12,7 @@ public class TaskCreateDto
     public decimal EstimateHours { get; set; }
     public int ProgressPercentage { get; set; }
     public DateTime? StartDate { get; set; }
+    [Required]
     public DateTime? DueDate { get; set; }
     public string? BlockerInformation { get; set; }
 }

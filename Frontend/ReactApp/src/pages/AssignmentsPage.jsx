@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ErrorMessage from '../components/ErrorMessage';
+import ActiveFilterChips from '../components/ActiveFilterChips';
 import { useAuth } from '../context/AuthContext';
 import { canManageWorkspace } from '../utils/permissions';
 import { getAssignmentDisplayStatus, getTodayDateInputValue } from '../utils/displayStatus';
@@ -179,7 +180,7 @@ function TaskPicker({ id, label, value, initialTask, onChange, disabled, require
           ))}
           {!loading && availableTasks.filter((task) => task.title.toLowerCase().includes(searchInput.toLowerCase())).length === 0 && <li>No tasks found.</li>}
         </ul>}
-        {required && !value && <small className="assignment-field-error">Select a task from the results.</small>}
+        {required && !value && <small className="assignment-field-error"></small>}
         {value && <button className="assignment-task-clear" type="button" aria-label="Clear selected task" onClick={() => { setSearchInput(''); setSelectedTask(null); onChange('', null); }}>×</button>}
         <ErrorMessage>{error}</ErrorMessage>
       </div>
@@ -352,7 +353,6 @@ function AssignmentForm({ assignment, onCancel, onSaved }) {
     <section className="assignment-modal" role="dialog" aria-modal="true" aria-labelledby="assignment-form-title">
       <div className="project-form-heading">
         <div>
-          <p className="eyebrow">{assignment ? 'Assignment details' : 'New assignment'}</p>
           <h2 id="assignment-form-title">{assignment ? 'Edit assignment' : 'Create assignment'}</h2>
         </div>
         <button className="assignment-modal-close" type="button" aria-label="Close assignment form" onClick={onCancel} disabled={saving}>×</button>
@@ -384,7 +384,7 @@ function AssignmentForm({ assignment, onCancel, onSaved }) {
               ))}
               {form.userId && !selectedUserExists && <option value={form.userId}>{`Current member · ${form.userId}`}</option>}
             </select>
-            {form.taskId && !form.userId && <small className="assignment-field-error">Choose a project member.</small>}
+            {form.taskId && !form.userId && <small className="assignment-field-error"></small>}
             <ErrorMessage>{usersError}</ErrorMessage>
           </div>
           {assignment && <div className="project-field">
@@ -424,7 +424,7 @@ function AssignmentForm({ assignment, onCancel, onSaved }) {
                 />
                 Assignment is active
               </label>
-              <span className="assignment-help">Deactivating an assignment records its unassigned time.</span>
+              <span className="assignment-help"></span>
             </div>
           )}
           <div className="project-form-actions project-field-wide">
@@ -649,25 +649,14 @@ function AssignmentsPage() {
       )}
 
       <div className="assignments-toolbar">
-        <TaskFilter
-          value={filters.taskId}
-          initialTask={taskDetails[filters.taskId]}
-          onChange={(value) => updateFilter('taskId', value)}
-        />
-        {canManage && <select aria-label="Filter assignments by user" value={filters.userId} onChange={(event) => updateFilter('userId', event.target.value)}>
-            <option value="">All users</option>
-            {userIds.map((userId) => <option key={userId} value={userId}>{userLabel(userId, currentUser, users)}</option>)}
-          </select>
-        }
-        {canManage && <select aria-label="Filter assignments by status" value={filters.isActive} onChange={(event) => updateFilter('isActive', event.target.value)}>
-            <option value="">All statuses</option>
-            <option value="true">Active</option>
-            <option value="false">Complete</option>
-          </select>
-        }
-        <span className="project-count">{loading ? 'Loading…' : `Showing ${totalCount ? (page - 1) * PAGE_SIZE + 1 : 0}-${Math.min(page * PAGE_SIZE, totalCount)} of ${totalCount}`}</span>
-        {Object.values(filters).some(Boolean) && <button className="assignments-clear" type="button" onClick={clearFilters}>Clear filters</button>}
+        <span className="project-count">{loading ? 'Loading…' : `${totalCount ? (page - 1) * PAGE_SIZE + 1 : 0}-${Math.min(page * PAGE_SIZE, totalCount)} of ${totalCount}`}</span>
       </div>
+
+      <ActiveFilterChips filters={[
+        ...(filters.taskId ? [{ key: 'task', label: 'Task', value: taskDetails[filters.taskId]?.title || `Task ${filters.taskId}`, onRemove: () => updateFilter('taskId', '') }] : []),
+        ...(filters.userId ? [{ key: 'user', label: 'User', value: userLabel(Number(filters.userId), currentUser, users), onRemove: () => updateFilter('userId', '') }] : []),
+        ...(filters.isActive ? [{ key: 'status', label: 'Status', value: filters.isActive === 'true' ? 'Active' : 'Complete', onRemove: () => updateFilter('isActive', '') }] : [])
+      ]} onClearAll={clearFilters} />
 
       <ErrorMessage>{listError}</ErrorMessage>
       <ErrorMessage>{taskDetailsError}</ErrorMessage>
@@ -678,7 +667,6 @@ function AssignmentsPage() {
         <div className="project-state project-empty">
           <h2>{Object.values(filters).some(Boolean) ? 'No matching assignments' : 'No assignments yet'}</h2>
           <p>{Object.values(filters).some(Boolean) ? 'Try changing your filters.' : canManage ? 'Create an assignment to get started.' : 'No assignments are available yet.'}</p>
-          {Object.values(filters).some(Boolean) && <button className="button button-secondary" type="button" onClick={clearFilters}>Clear filters</button>}
           {!Object.values(filters).some(Boolean) && canManage && !formOpen && currentUser?.id && (
             <button className="button button-secondary" type="button" onClick={openCreateForm}>Create your first assignment</button>
           )}

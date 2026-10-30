@@ -89,7 +89,8 @@ function DashboardPage() {
     datasets: [{
       data: [count(summary?.todoTasks), count(summary?.inProgressTasks), completedTasks, count(summary?.blockedTasks)],
       backgroundColor: ['#94a3b8', '#3b82f6', '#16a34a', '#dc2626'],
-      borderRadius: 6,
+      borderRadius: 10,
+      borderSkipped: false,
       maxBarThickness: 64
     }]
   };
@@ -104,7 +105,10 @@ function DashboardPage() {
       data: [riskCounts.low, riskCounts.medium, riskCounts.high],
       backgroundColor: ['#16a34a', '#d97706', '#dc2626'],
       borderColor: '#ffffff',
-      borderWidth: 1
+      borderWidth: 1,
+      borderRadius: 8,
+      spacing: 5,
+      hoverOffset: 4
     }]
   };
   const riskTaskTotal = riskCounts.low + riskCounts.medium + riskCounts.high;
@@ -131,7 +135,7 @@ function DashboardPage() {
     maintainAspectRatio: false,
     layout: { padding: 4 },
     plugins: { legend: { position: 'bottom', labels: {
-      boxWidth: 12, boxHeight: 12, padding: 12, font: { size: 12 },
+      boxWidth: 12, boxHeight: 12, padding: 16, usePointStyle: true, pointStyle: 'rectRounded', font: { size: 12 },
       filter: (item, chart) => chart.datasets[0].data[item.index] > 0
     } } }
   };

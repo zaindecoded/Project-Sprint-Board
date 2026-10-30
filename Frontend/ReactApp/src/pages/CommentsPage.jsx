@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import ErrorMessage from '../components/ErrorMessage';
+import ActiveFilterChips from '../components/ActiveFilterChips';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { canManageWorkspace } from '../utils/permissions';
@@ -183,7 +184,7 @@ function TaskSelector({ id, label = 'Task', value, initialTask, onChange, disabl
       {loading ? <li>Loading tasks…</li> : matches.map((task) => <li key={task.id}><button type="button" role="option" aria-selected={String(task.id) === String(value)} onMouseDown={(event) => event.preventDefault()} onClick={() => { setSelectedTask(task); setSearch(task.title); setOpen(false); onChange(task.id, task); }}>{task.title}</button></li>)}
       {!loading && !matches.length && <li>No tasks found.</li>}
     </ul>}
-    {required && !value && <small className="comment-field-error">Select a task from the results.</small>}
+    {required && !value && <small className="comment-field-error"></small>}
     {value && <button type="button" className="comment-task-clear" aria-label="Clear selected task" onClick={() => { setSearch(''); setSelectedTask(null); onChange('', null); }}>×</button>}
     <ErrorMessage>{error}</ErrorMessage>
   </div>;
@@ -315,7 +316,7 @@ function CommentForm({ comment, currentUser, users, onCancel, onSaved }) {
               required
               disabled={saving}
             />
-            {!form.message.trim() && <small className="comment-field-error">Comment text is required.</small>}
+            {!form.message.trim() && <small className="comment-field-error"></small>}
             <span className="comment-character-count">{form.message.length}/{MAX_MESSAGE_LENGTH}</span>
           </div>
           <div className="project-form-actions project-field-wide">
@@ -550,9 +551,14 @@ function CommentsPage() {
               ))}
             </select>
         )}
-        <span className="project-count">{loading || searchInput.trim() !== search ? 'Loading…' : `Showing ${totalCount ? (page - 1) * PAGE_SIZE + 1 : 0}-${Math.min(page * PAGE_SIZE, totalCount)} of ${totalCount}`}</span>
-        {(search || taskId || userId) && <button className="comments-clear" type="button" onClick={clearFilters}>Clear filters</button>}
+        <span className="project-count">{loading || searchInput.trim() !== search ? 'Loading…' : `${totalCount ? (page - 1) * PAGE_SIZE + 1 : 0}-${Math.min(page * PAGE_SIZE, totalCount)} of ${totalCount}`}</span>
       </div>
+
+      <ActiveFilterChips filters={[
+        ...(search ? [{ key: 'search', label: 'Search', value: search, onRemove: () => { setSearchInput(''); setSearch(''); setPage(1); } }] : []),
+        ...(taskId ? [{ key: 'task', label: 'Task', value: taskDetails[taskId]?.title || `Task ${taskId}`, onRemove: () => { setTaskId(''); setPage(1); } }] : []),
+        ...(userId ? [{ key: 'user', label: 'Author', value: userLabel(Number(userId), currentUser, users), onRemove: () => { setUserId(''); setPage(1); } }] : [])
+      ]} onClearAll={clearFilters} />
 
       <ErrorMessage>{listError}</ErrorMessage>
       <ErrorMessage>{taskDetailsError}</ErrorMessage>
@@ -563,7 +569,6 @@ function CommentsPage() {
         <div className="project-state project-empty">
           <h2>{search || taskId || userId ? 'No comments match your filters' : 'No comments yet'}</h2>
           <p>{search || taskId || userId ? 'Try changing your search or filters.' : 'Add a comment to a task to get started.'}</p>
-          {(search || taskId || userId) && <button className="button button-secondary" type="button" onClick={clearFilters}>Clear filters</button>}
           {!search && !taskId && !userId && !formOpen && currentUser?.id && (
             <button className="button button-secondary" type="button" onClick={openCreateForm}>Create your first comment</button>
           )}

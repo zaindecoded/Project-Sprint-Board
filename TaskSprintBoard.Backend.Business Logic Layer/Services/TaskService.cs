@@ -49,6 +49,9 @@ public class TaskService
         if (dto.ProgressPercentage < 0 || dto.ProgressPercentage > 100)
             throw new InvalidOperationException("Progress must be between 0 and 100.");
 
+        if (!dto.DueDate.HasValue)
+            throw new InvalidOperationException("Task due date is required.");
+
         var today = DateTime.Today;
         if (dto.StartDate.HasValue && dto.StartDate.Value.Date < today)
             throw new InvalidOperationException("Task start date must be today or a future date.");
