@@ -31,3 +31,4 @@ pnpm-debug.log*
 Thumbs.db
 appsettings.Development.json
 appsettings.json
+vite.config.js
