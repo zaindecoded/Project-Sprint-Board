@@ -117,8 +117,8 @@ public class AuthService
         {
             Subject = new ClaimsIdentity(claims),
             Expires = expiresAt,
-            Issuer = jwtSettings["Issuer"] ?? "TaskSprintBoard",
-            Audience = jwtSettings["Audience"] ?? "TaskSprintBoardClients",
+            Issuer = "TaskSprintBoard",
+            Audience = "TaskSprintBoardClients",
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
 

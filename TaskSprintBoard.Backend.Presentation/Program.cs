@@ -47,11 +47,11 @@ var jwtKey = !string.IsNullOrWhiteSpace(configuredJwtKey)
     : Environment.GetEnvironmentVariable("TASKSPRINTBOARD_JWT_KEY");
 if (string.IsNullOrWhiteSpace(jwtKey))
 {
-    throw new InvalidOperationException("JWT signing key is missing. Set Jwt:Key or the TASKSPRINTBOARD_JWT_KEY environment variable.");
+    throw new InvalidOperationException("JWT signing key is missing.");
 }
 
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "TaskSprintBoard";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "TaskSprintBoardClients";
+var jwtIssuer = "TaskSprintBoard";
+var jwtAudience = "TaskSprintBoardClients";
 
 builder.Services.AddAuthentication(options =>
 {
