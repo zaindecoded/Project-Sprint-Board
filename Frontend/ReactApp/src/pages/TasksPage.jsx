@@ -284,7 +284,6 @@ function TaskRiskPanel({ task, onClose, onEvaluatingChange }) {
               <strong>{result.riskScore} / 100</strong>
             </div>
           </div>
-          <p className="task-risk-advisory">Rule-based estimate from progress, due date, priority, and task history.</p>
           <p className="task-risk-evaluated-at"><span className="task-risk-label">Evaluated at</span> {formatDateTime(result.timestamp)}</p>
           <div className="task-risk-explanation">
             <h3>Risk factors</h3>
