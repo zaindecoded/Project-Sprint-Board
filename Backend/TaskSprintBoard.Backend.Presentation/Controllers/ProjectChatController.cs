@@ -24,19 +24,28 @@ public class ProjectChatController : ControllerBase
         if (rawQuestion.Length is 0 or > 1000)
             return BadRequest(new { message = "Enter a question of 1 to 1000 characters." });
         var question = Normalize(rawQuestion);
+        int? managerId = User.IsInRole("ProjectManager")
+            ? User.GetActorUserId()
+            : null;
 
-        var projects = await _db.Projects.AsNoTracking().Where(x => x.IsActive && !x.IsDeleted).ToListAsync(cancellationToken);
-        var sprints = await _db.Sprints.AsNoTracking()
+        var projectQuery = _db.Projects.AsNoTracking().Where(x => x.IsActive && !x.IsDeleted);
+        if (managerId.HasValue) projectQuery = projectQuery.Where(x => x.CreatedBy == managerId.Value);
+        var projects = await projectQuery.ToListAsync(cancellationToken);
+
+        var sprintQuery = _db.Sprints.AsNoTracking()
             .Include(x => x.Project)
-            .Where(x => x.IsActive && !x.IsDeleted && x.Project.IsActive && !x.Project.IsDeleted)
-            .ToListAsync(cancellationToken);
-        var tasks = await _db.Tasks.AsNoTracking()
+            .Where(x => x.IsActive && !x.IsDeleted && x.Project.IsActive && !x.Project.IsDeleted);
+        if (managerId.HasValue) sprintQuery = sprintQuery.Where(x => x.Project.CreatedBy == managerId.Value);
+        var sprints = await sprintQuery.ToListAsync(cancellationToken);
+
+        var taskQuery = _db.Tasks.AsNoTracking()
             .Include(x => x.PriorityDefinition)
             .Include(x => x.StatusDefinition)
             .Include(x => x.Sprint).ThenInclude(x => x.Project)
             .Include(x => x.Assignments).ThenInclude(x => x.User)
-            .Where(x => x.IsActive && !x.IsDeleted && x.Sprint.IsActive && !x.Sprint.IsDeleted && x.Sprint.Project.IsActive && !x.Sprint.Project.IsDeleted)
-            .ToListAsync(cancellationToken);
+            .Where(x => x.IsActive && !x.IsDeleted && x.Sprint.IsActive && !x.Sprint.IsDeleted && x.Sprint.Project.IsActive && !x.Sprint.Project.IsDeleted);
+        if (managerId.HasValue) taskQuery = taskQuery.Where(x => x.Sprint.Project.CreatedBy == managerId.Value);
+        var tasks = await taskQuery.ToListAsync(cancellationToken);
 
         var project = projects.OrderByDescending(x => Normalize(x.Name).Length)
             .FirstOrDefault(x => question.Contains(Normalize(x.Name), StringComparison.Ordinal));
@@ -74,34 +83,34 @@ public class ProjectChatController : ControllerBase
         if (Has(question, "description", "detail")) return $"{task.Title}: {task.Description}";
         var assignees = task.Assignments.Where(x => x.IsActive && !x.IsDeleted && x.User.IsActive && !x.User.IsDeleted)
             .Select(x => $"{x.User.FirstName} {x.User.LastName}".Trim()).Distinct();
-        return $"{task.Title} — {task.Status}, {task.Priority} priority, {task.ProgressPercentage}% complete, {task.EstimateHours:0.##} hours. Start: {Date(task.StartDate)}; due: {Date(task.DueDate)}. Assignees: {string.Join(", ", assignees.DefaultIfEmpty("none"))}. Blocker: {task.BlockerInformation ?? "none recorded"}. Description: {task.Description}";
+        return $"{task.Title}\nStatus: {task.Status} · Priority: {task.Priority}\nProgress: {task.ProgressPercentage}% · Estimate: {task.EstimateHours:0.##} hours\nDue: {Date(task.DueDate)} · Assignees: {string.Join(", ", assignees.DefaultIfEmpty("none"))}\nBlocker: {task.BlockerInformation ?? "None recorded."}";
     }
 
     private static string AnswerSprint(string question, Sprint sprint, List<TaskItem> tasks)
     {
         var sprintTasks = tasks.Where(x => x.SprintId == sprint.Id).ToList();
-        if (Has(question, "goal", "purpose")) return $"Sprint goal for {sprint.Name}: {sprint.Goal}";
+        if (Has(question, "goal", "purpose")) return string.IsNullOrWhiteSpace(sprint.Goal) ? $"{sprint.Name} has no goal recorded." : $"{sprint.Name}\nGoal: {sprint.Goal}";
         if (Has(question, "task", "work item")) return ListTasks(FilterTasks(question, sprintTasks));
         if (Has(question, "start", "end", "date", "deadline", "when"))
             return $"{sprint.Name} runs {Date(sprint.StartDate)} to {Date(sprint.EndDate)}.";
         if (Has(question, "status", "progress", "active", "complete"))
-            return $"{sprint.Name} is {sprint.Status} with {sprintTasks.Count} tasks ({sprintTasks.Count(x => IsDone(x.Status))} complete).";
-        return $"{sprint.Name} ({sprint.Project.Name}) — {sprint.Status}, {Date(sprint.StartDate)} to {Date(sprint.EndDate)}. Goal: {sprint.Goal}. {sprintTasks.Count} tasks.";
+            return $"{sprint.Name}\nStatus: {sprint.Status}\nTasks: {sprintTasks.Count} total · {sprintTasks.Count(x => IsDone(x.Status))} complete.";
+        return $"{sprint.Name} · {sprint.Project.Name}\nStatus: {sprint.Status}\nDates: {Date(sprint.StartDate)} – {Date(sprint.EndDate)}\nGoal: {(string.IsNullOrWhiteSpace(sprint.Goal) ? "None recorded." : sprint.Goal)}\nTasks: {sprintTasks.Count}.";
     }
 
     private static string AnswerProject(string question, Project project, List<Sprint> sprints, List<TaskItem> tasks)
     {
-        if (Has(question, "count", "how many")) return $"{project.Name} has {sprints.Count} sprints and {tasks.Count} tasks.";
+        if (Has(question, "count", "how many")) return $"{project.Name}\nSprints: {sprints.Count} · Tasks: {tasks.Count}.";
         if (Has(question, "description", "detail", "about"))
             return string.IsNullOrWhiteSpace(project.Description) ? $"{project.Name} has no description recorded." : $"{project.Name}: {project.Description}";
         if (Has(question, "task", "blocked", "priority", "assignee")) return ListTasks(FilterTasks(question, tasks));
         if (Has(question, "sprint"))
-            return sprints.Count == 0 ? $"{project.Name} has no sprints." : string.Join("\n", sprints.Select(x => $"{x.Name}: {x.Status}, {Date(x.StartDate)} to {Date(x.EndDate)}"));
+            return sprints.Count == 0 ? $"{project.Name} has no sprints." : string.Join("\n\n", sprints.Take(10).Select(x => $"• {x.Name}\n  {x.Status} · {Date(x.StartDate)} – {Date(x.EndDate)}")) + (sprints.Count > 10 ? $"\n\nShowing 10 of {sprints.Count}." : string.Empty);
         if (Has(question, "near", "soon", "closest", "deadline", "end", "date", "when"))
             return ProjectDeadline(project);
         if (Has(question, "status", "active", "complete", "progress"))
-            return $"{project.Name} is {project.Status}. It has {sprints.Count} sprints and {tasks.Count} tasks ({tasks.Count(x => IsDone(x.Status))} complete).";
-        return $"{project.Name} — {project.Status}, {Date(project.StartDate)} to {Date(project.EndDate)}. {project.Description ?? "No description recorded."} {sprints.Count} sprints and {tasks.Count} tasks.";
+            return $"{project.Name}\nStatus: {project.Status}\nSprints: {sprints.Count} · Tasks: {tasks.Count} · Complete: {tasks.Count(x => IsDone(x.Status))}.";
+        return $"{project.Name}\nStatus: {project.Status}\nDates: {Date(project.StartDate)} – {Date(project.EndDate)}\nSprints: {sprints.Count} · Tasks: {tasks.Count}.";
     }
 
     private static string AnswerOverview(string question, List<Project> projects, List<Sprint> sprints, List<TaskItem> tasks)
@@ -142,11 +151,12 @@ public class ProjectChatController : ControllerBase
             var ordered = Has(question, "closest", "soonest", "next", "nearest")
                 ? matchingProjects.OrderBy(x => x.EndDate ?? DateTime.MaxValue)
                 : matchingProjects.OrderBy(x => x.Name);
-            return string.Join("\n", ordered.Select(x => Has(question, "description", "about")
-                ? $"{x.Name}: {x.Description ?? "No description recorded."}"
+            var listedProjects = ordered.Take(10).ToList();
+            return string.Join("\n\n", listedProjects.Select(x => Has(question, "description", "about")
+                ? $"• {x.Name}\n  {x.Description ?? "No description recorded."}"
                 : Has(question, "deadline", "date", "start", "when", "closest", "soonest", "next", "nearest")
-                    ? $"{x.Name}: {x.Status}, starts {Date(x.StartDate)}, deadline {Date(x.EndDate)}"
-                    : $"{x.Name}: {x.Status}"));
+                    ? $"• {x.Name} · {x.Status}\n  Starts {Date(x.StartDate)} · deadline {Date(x.EndDate)}"
+                    : $"• {x.Name} · {x.Status}")) + (matchingProjects.Count > listedProjects.Count ? $"\n\nShowing {listedProjects.Count} of {matchingProjects.Count}." : string.Empty);
         }
         if (Has(question, "sprint"))
         {
@@ -154,9 +164,11 @@ public class ProjectChatController : ControllerBase
                 : Has(question, "active", "current") ? sprints.Where(x => IsStatus(x.Status, "active"))
                 : sprints;
             var listedSprints = matchingSprints.ToList();
-            return listedSprints.Count == 0 ? "There are no matching sprints." : string.Join("\n", listedSprints.Select(x => Has(question, "goal", "purpose")
-                ? $"{x.Name} ({x.Project.Name}): {x.Goal}"
-                : $"{x.Name} ({x.Project.Name}): {x.Status}, {Date(x.StartDate)} to {Date(x.EndDate)}"));
+            if (listedSprints.Count == 0) return "There are no matching sprints.";
+            var displayedSprints = listedSprints.Take(10).ToList();
+            return string.Join("\n\n", displayedSprints.Select(x => Has(question, "goal", "purpose")
+                ? $"• {x.Name} · {x.Project.Name}\n  Goal: {(string.IsNullOrWhiteSpace(x.Goal) ? "None recorded." : x.Goal)}"
+                : $"• {x.Name} · {x.Project.Name}\n  {x.Status} · {Date(x.StartDate)} – {Date(x.EndDate)}")) + (listedSprints.Count > displayedSprints.Count ? $"\n\nShowing {displayedSprints.Count} of {listedSprints.Count}." : string.Empty);
         }
         if (Has(question, "task", "work item", "blocker", "assignee")) return ListTasks(FilterTasks(question, tasks));
         if (Has(question, "status", "progress", "active", "complete"))
@@ -193,12 +205,13 @@ public class ProjectChatController : ControllerBase
                 ? dated.Where(x => x.EndDate!.Value.Date >= today && x.EndDate.Value.Date <= cutoff)
                 : dated.Where(x => x.EndDate!.Value.Date >= today);
         var ordered = matching.OrderBy(x => x.EndDate);
-        var results = Has(question, "closest", "nearest") ? ordered.Take(5).ToList() : ordered.ToList();
+        var matches = ordered.ToList();
+        var results = Has(question, "closest", "nearest") ? matches.Take(5).ToList() : matches.Take(10).ToList();
         if (results.Count == 0)
             return Has(question, "overdue", "late") ? "No active projects are past their end date."
                 : Has(question, "near", "soon", "upcoming") ? "No active projects have an end date in the next 30 days."
                 : "No active projects have an end date set.";
-        return string.Join("\n", results.Select(ProjectDeadline));
+        return string.Join("\n\n", results.Select(x => $"• {ProjectDeadline(x)}")) + (matches.Count > results.Count ? $"\n\nShowing {results.Count} of {matches.Count}." : string.Empty);
     }
 
     private static IEnumerable<Project> FilterProjects(string question, List<Project> projects)
@@ -229,13 +242,13 @@ public class ProjectChatController : ControllerBase
     private static string ListTasks(List<TaskItem> tasks, string empty = "No matching tasks found.")
     {
         if (tasks.Count == 0) return empty;
-        var heading = tasks.Count > 20 ? $"20 of {tasks.Count} tasks.\n" : string.Empty;
-        return heading + string.Join("\n", tasks.Take(20).Select(x =>
+        var listed = tasks.Take(10).Select(x =>
         {
             var assignees = x.Assignments.Where(a => a.IsActive && !a.IsDeleted && a.User.IsActive && !a.User.IsDeleted)
                 .Select(a => $"{a.User.FirstName} {a.User.LastName}".Trim()).Distinct();
-            return $"{x.Title} ({x.Sprint.Project.Name} / {x.Sprint.Name}) — {x.Status}, {x.Priority} priority, {x.ProgressPercentage}% complete, {x.EstimateHours:0.##} hours, due {Date(x.DueDate)}; assigned to {string.Join(", ", assignees.DefaultIfEmpty("nobody"))}; blocker: {x.BlockerInformation ?? "none"}.";
-        }));
+            return $"• {x.Title} · {x.Sprint.Project.Name} / {x.Sprint.Name}\n  {x.Status} · {x.Priority} priority · {x.ProgressPercentage}% complete\n  Due {Date(x.DueDate)} · Assigned to {string.Join(", ", assignees.DefaultIfEmpty("nobody"))}\n  Blocker: {x.BlockerInformation ?? "None."}";
+        }).ToList();
+        return $"Tasks ({tasks.Count}):\n{string.Join("\n\n", listed)}" + (tasks.Count > listed.Count ? $"\n\nShowing {listed.Count} of {tasks.Count}." : string.Empty);
     }
 
     private static bool IsDone(string status) => new[] { "done", "complete", "completed", "closed" }.Contains(Normalize(status));
