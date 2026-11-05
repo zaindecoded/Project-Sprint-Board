@@ -1,5 +1,0 @@
-<Solution>
-  <Project Path="TaskSprintBoard.Backend.Business Logic Layer/TaskSprintBoard.Backend.BusinessLogic.csproj" />
-  <Project Path="TaskSprintBoard.Backend.Data Layer/TaskSprintBoard.Backend.Data.csproj" />
-  <Project Path="TaskSprintBoard.Backend.Presentation/TaskSprintBoard.Backend.Presentation.csproj" />
-</Solution>

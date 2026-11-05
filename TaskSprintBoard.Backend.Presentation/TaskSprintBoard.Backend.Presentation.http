@@ -1,6 +1,0 @@
-@TaskSprintBoard.Backend.Presentation_HostAddress = http://localhost:5183
-
-GET {{TaskSprintBoard.Backend.Presentation_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
