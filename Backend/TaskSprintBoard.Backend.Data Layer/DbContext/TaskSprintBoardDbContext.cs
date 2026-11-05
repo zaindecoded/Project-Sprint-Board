@@ -25,6 +25,8 @@ public class TaskSprintBoardDbContext : Microsoft.EntityFrameworkCore.DbContext
     public DbSet<StatusHistory> StatusHistory => Set<StatusHistory>();
     public DbSet<TaskRiskEvaluation> TaskRiskEvaluations => Set<TaskRiskEvaluation>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<AuditAction> AuditActions => Set<AuditAction>();
+    public DbSet<AuditEntityType> AuditEntityTypes => Set<AuditEntityType>();
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
@@ -75,8 +77,8 @@ public class TaskSprintBoardDbContext : Microsoft.EntityFrameworkCore.DbContext
             {
                 OccurredAt = DateTime.UtcNow,
                 ActorUserId = actor is int id && id > 0 ? id : null,
-                Action = action,
-                EntityType = name == nameof(TaskItem) ? "Task" : name,
+                ActionId = AuditLookupIds.Action(action),
+                EntityTypeId = AuditLookupIds.Entity(name == nameof(TaskItem) ? "Task" : name),
                 EntityId = entry.State == EntityState.Added || entry.Property("Id").IsTemporary ? null : Convert.ToInt32(entry.Property("Id").CurrentValue),
                 Details = values.Count == 0 ? null : JsonSerializer.Serialize(values)
             });
@@ -270,12 +272,53 @@ public class TaskSprintBoardDbContext : Microsoft.EntityFrameworkCore.DbContext
         {
             entity.ToTable("AuditLogs");
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Action).IsRequired().HasMaxLength(100);
-            entity.Property(x => x.EntityType).IsRequired().HasMaxLength(100);
             entity.Property(x => x.ActorName).HasMaxLength(250);
             entity.Property(x => x.Details).HasColumnType("nvarchar(max)");
             entity.HasIndex(x => x.OccurredAt);
-            entity.HasIndex(x => new { x.Action, x.EntityType, x.OccurredAt });
+            entity.HasIndex(x => new { x.ActionId, x.EntityTypeId, x.OccurredAt });
+            entity.HasOne(x => x.ActionDefinition).WithMany(x => x.Logs).HasForeignKey(x => x.ActionId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.EntityTypeDefinition).WithMany(x => x.Logs).HasForeignKey(x => x.EntityTypeId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<AuditAction>(entity =>
+        {
+            entity.ToTable("AuditActions");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).IsRequired().HasMaxLength(100);
+            entity.HasIndex(x => x.Name).IsUnique();
+            entity.HasData(
+                new AuditAction { Id = 1, Name = "Created" },
+                new AuditAction { Id = 2, Name = "Updated" },
+                new AuditAction { Id = 3, Name = "Deleted" },
+                new AuditAction { Id = 4, Name = "Status Changed" },
+                new AuditAction { Id = 5, Name = "Assigned" },
+                new AuditAction { Id = 6, Name = "Unassigned" },
+                new AuditAction { Id = 7, Name = "Assignment Updated" },
+                new AuditAction { Id = 8, Name = "Login" },
+                new AuditAction { Id = 9, Name = "Other" });
+        });
+
+        modelBuilder.Entity<AuditEntityType>(entity =>
+        {
+            entity.ToTable("AuditEntityTypes");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).IsRequired().HasMaxLength(100);
+            entity.HasIndex(x => x.Name).IsUnique();
+            entity.HasData(
+                new AuditEntityType { Id = 1, Name = "Task" },
+                new AuditEntityType { Id = 2, Name = "Project" },
+                new AuditEntityType { Id = 3, Name = "Sprint" },
+                new AuditEntityType { Id = 4, Name = "User" },
+                new AuditEntityType { Id = 5, Name = "Assignment" },
+                new AuditEntityType { Id = 6, Name = "Comment" },
+                new AuditEntityType { Id = 7, Name = "TaskRiskEvaluation" },
+                new AuditEntityType { Id = 8, Name = "Role" },
+                new AuditEntityType { Id = 9, Name = "Status" },
+                new AuditEntityType { Id = 10, Name = "TaskPriorityLookup" },
+                new AuditEntityType { Id = 11, Name = "TaskStatusLookup" },
+                new AuditEntityType { Id = 12, Name = "RoleInTask" },
+                new AuditEntityType { Id = 13, Name = "Other" },
+                new AuditEntityType { Id = 14, Name = "Authentication" });
         });
     }
 }

@@ -75,6 +75,167 @@ namespace TaskSprintBoard.Backend.Data.Migrations
                     b.ToTable("Assignments", (string)null);
                 });
 
+            modelBuilder.Entity("TaskSprintBoard.Backend.Data.Entities.AuditAction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("AuditActions", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Name = "Created"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Name = "Updated"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Name = "Deleted"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Name = "Status Changed"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Name = "Assigned"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Name = "Unassigned"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Name = "Assignment Updated"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Name = "Login"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            Name = "Other"
+                        });
+                });
+
+            modelBuilder.Entity("TaskSprintBoard.Backend.Data.Entities.AuditEntityType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("AuditEntityTypes", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Name = "Task"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Name = "Project"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Name = "Sprint"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Name = "User"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Name = "Assignment"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Name = "Comment"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Name = "TaskRiskEvaluation"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Name = "Role"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            Name = "Status"
+                        },
+                        new
+                        {
+                            Id = 10,
+                            Name = "TaskPriorityLookup"
+                        },
+                        new
+                        {
+                            Id = 11,
+                            Name = "TaskStatusLookup"
+                        },
+                        new
+                        {
+                            Id = 12,
+                            Name = "RoleInTask"
+                        },
+                        new
+                        {
+                            Id = 13,
+                            Name = "Other"
+                        },
+                        new
+                        {
+                            Id = 14,
+                            Name = "Authentication"
+                        });
+                });
+
             modelBuilder.Entity("TaskSprintBoard.Backend.Data.Entities.AuditLog", b =>
                 {
                     b.Property<long>("Id")
@@ -83,10 +244,8 @@ namespace TaskSprintBoard.Backend.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                    b.Property<int>("ActionId")
+                        .HasColumnType("int");
 
                     b.Property<string>("ActorName")
                         .HasMaxLength(250)
@@ -101,19 +260,19 @@ namespace TaskSprintBoard.Backend.Data.Migrations
                     b.Property<int?>("EntityId")
                         .HasColumnType("int");
 
-                    b.Property<string>("EntityType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                    b.Property<int>("EntityTypeId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("OccurredAt")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("EntityTypeId");
+
                     b.HasIndex("OccurredAt");
 
-                    b.HasIndex("Action", "EntityType", "OccurredAt");
+                    b.HasIndex("ActionId", "EntityTypeId", "OccurredAt");
 
                     b.ToTable("AuditLogs", (string)null);
                 });
@@ -823,6 +982,25 @@ namespace TaskSprintBoard.Backend.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("TaskSprintBoard.Backend.Data.Entities.AuditLog", b =>
+                {
+                    b.HasOne("TaskSprintBoard.Backend.Data.Entities.AuditAction", "ActionDefinition")
+                        .WithMany("Logs")
+                        .HasForeignKey("ActionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TaskSprintBoard.Backend.Data.Entities.AuditEntityType", "EntityTypeDefinition")
+                        .WithMany("Logs")
+                        .HasForeignKey("EntityTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ActionDefinition");
+
+                    b.Navigation("EntityTypeDefinition");
+                });
+
             modelBuilder.Entity("TaskSprintBoard.Backend.Data.Entities.Comment", b =>
                 {
                     b.HasOne("TaskSprintBoard.Backend.Data.Entities.TaskItem", "Task")
@@ -962,6 +1140,16 @@ namespace TaskSprintBoard.Backend.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("RoleDefinition");
+                });
+
+            modelBuilder.Entity("TaskSprintBoard.Backend.Data.Entities.AuditAction", b =>
+                {
+                    b.Navigation("Logs");
+                });
+
+            modelBuilder.Entity("TaskSprintBoard.Backend.Data.Entities.AuditEntityType", b =>
+                {
+                    b.Navigation("Logs");
                 });
 
             modelBuilder.Entity("TaskSprintBoard.Backend.Data.Entities.Project", b =>

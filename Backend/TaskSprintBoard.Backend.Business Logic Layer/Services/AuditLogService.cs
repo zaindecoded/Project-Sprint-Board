@@ -21,7 +21,7 @@ public class AuditLogService
             {
                 Id = x.Id, Timestamp = x.OccurredAt, ActorUserId = x.ActorUserId,
                 Actor = x.ActorName ?? (x.ActorUserId.HasValue ? $"User · {x.ActorUserId}" : "System"),
-                Action = x.Action, Entity = x.EntityType, EntityId = x.EntityId, Details = x.Details
+                Action = x.ActionDefinition.Name, Entity = x.EntityTypeDefinition.Name, EntityId = x.EntityId, Details = x.Details
             }).ToList()
         };
     }

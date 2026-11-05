@@ -6,8 +6,10 @@ public class AuditLog
     public DateTime OccurredAt { get; set; } = DateTime.UtcNow;
     public int? ActorUserId { get; set; }
     public string? ActorName { get; set; }
-    public string Action { get; set; } = string.Empty;
-    public string EntityType { get; set; } = string.Empty;
+    public int ActionId { get; set; }
+    public AuditAction ActionDefinition { get; set; } = null!;
+    public int EntityTypeId { get; set; }
+    public AuditEntityType EntityTypeDefinition { get; set; } = null!;
     public int? EntityId { get; set; }
     public string? Details { get; set; }
 }

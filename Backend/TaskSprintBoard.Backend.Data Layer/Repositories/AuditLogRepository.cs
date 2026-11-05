@@ -11,16 +11,16 @@ public class AuditLogRepository
 
     public async Task<(IReadOnlyList<AuditLog> Items, int TotalCount)> SearchAsync(int page, int pageSize, string? search, string? action, string? entity)
     {
-        var query = from log in _context.AuditLogs.AsNoTracking()
+        var query = from log in _context.AuditLogs.AsNoTracking().Include(x => x.ActionDefinition).Include(x => x.EntityTypeDefinition)
                     join user in _context.Users.AsNoTracking() on log.ActorUserId equals user.Id into actorJoin
                     from actor in actorJoin.DefaultIfEmpty()
                     select new { Log = log, Actor = actor };
-        if (!string.IsNullOrWhiteSpace(action)) query = query.Where(x => x.Log.Action == action);
-        if (!string.IsNullOrWhiteSpace(entity)) query = query.Where(x => x.Log.EntityType == entity);
+        if (!string.IsNullOrWhiteSpace(action)) query = query.Where(x => x.Log.ActionDefinition.Name == action);
+        if (!string.IsNullOrWhiteSpace(entity)) query = query.Where(x => x.Log.EntityTypeDefinition.Name == entity);
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
-            query = query.Where(x => x.Log.Action.Contains(term) || x.Log.EntityType.Contains(term)
+            query = query.Where(x => x.Log.ActionDefinition.Name.Contains(term) || x.Log.EntityTypeDefinition.Name.Contains(term)
                 || (x.Log.ActorName ?? "").Contains(term)
                 || (x.Actor != null && (x.Actor.FirstName.Contains(term) || x.Actor.LastName.Contains(term) || x.Actor.Email.Contains(term)))
                 || (x.Log.Details ?? "").Contains(term));
@@ -40,8 +40,8 @@ public class AuditLogRepository
             OccurredAt = DateTime.UtcNow,
             ActorUserId = actorUserId,
             ActorName = actorName,
-            Action = "Login",
-            EntityType = "Authentication",
+            ActionId = AuditLookupIds.Action("Login"),
+            EntityTypeId = AuditLookupIds.Entity("Authentication"),
             Details = "{}"
         });
         await _context.SaveChangesAsync();
@@ -49,8 +49,8 @@ public class AuditLogRepository
 
     public async Task<(IReadOnlyList<string> Actions, IReadOnlyList<string> Entities)> GetFiltersAsync()
     {
-        var actions = await _context.AuditLogs.AsNoTracking().Select(x => x.Action).Distinct().OrderBy(x => x).ToListAsync();
-        var entities = await _context.AuditLogs.AsNoTracking().Select(x => x.EntityType).Distinct().OrderBy(x => x).ToListAsync();
+        var actions = await _context.AuditLogs.AsNoTracking().Select(x => x.ActionDefinition.Name).Distinct().OrderBy(x => x).ToListAsync();
+        var entities = await _context.AuditLogs.AsNoTracking().Select(x => x.EntityTypeDefinition.Name).Distinct().OrderBy(x => x).ToListAsync();
         return (actions, entities);
     }
 }
