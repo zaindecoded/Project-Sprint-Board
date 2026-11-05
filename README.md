@@ -33,7 +33,7 @@ Prerequisites: .NET 8 SDK, Node.js, and SQL Server Express (`.\\SQLEXPRESS`).
 1. Start the API from the repository root:
 
    ```powershell
-   dotnet run --project TaskSprintBoard.Backend.Presentation --launch-profile http
+   dotnet run --project Backend/TaskSprintBoard.Backend.Presentation --launch-profile http
    ```
 
    The API applies database migrations on startup and is available at `http://localhost:5183` (Swagger: `/swagger`). Configure `ConnectionStrings:DefaultConnection` in `appsettings.Development.json` if your SQL Server differs.
@@ -53,9 +53,9 @@ The project chat widget is shown to admins and project managers. It answers ques
 ## Project structure
 
 ```text
-TaskSprintBoard.slnx
-TaskSprintBoard.Backend.Presentation/   API controllers and startup
-TaskSprintBoard.Backend.Business Logic Layer/  Services, DTOs, validators, enums
-TaskSprintBoard.Backend.Data Layer/     EF Core context, entities, repositories, migrations
+Backend/TaskSprintBoard.slnx
+Backend/TaskSprintBoard.Backend.Presentation/   API controllers and startup
+Backend/TaskSprintBoard.Backend.Business Logic Layer/  Services, DTOs, validators, enums
+Backend/TaskSprintBoard.Backend.Data Layer/     EF Core context, entities, repositories, migrations
 TaskSprintBoard.Tests/                  Backend tests
 Frontend/ReactApp/                      React application
