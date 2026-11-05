@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import ErrorMessage from '../../components/ErrorMessage';
+import FormField from '../../components/FormField';
+import { StatusBadge } from '../../components/badges';
+import { EmptyState, LoadingState } from '../../components/LoadingEmptyState';
 import ActiveFilterChips from '../../components/ActiveFilterChips';
+import Pagination from '../../components/Pagination';
+import Delete from '../../components/Delete';
+import SearchFilterToolbar from '../../components/SearchFilterToolbar';
+import Modal from '../../components/Modal';
 import { useAuth } from '../../context/AuthContext';
 import { deleteSprint, getSprint, getSprints, createSprint, updateSprint } from '../../services/sprintApi';
 import { getProjects } from '../../services/projectApi';
@@ -171,7 +178,7 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
       startDate: form.startDate,
       endDate: form.endDate,
       goal: form.goal.trim(),
-      status: sprint ? form.status.trim() : 'Planned'
+      statusId: ({ Planned: 1, Active: 2, OnHold: 3, Completed: 4, Cancelled: 5 })[sprint ? form.status.trim() : 'Planned'] ?? 1
     };
     try {
       if (sprint) {
@@ -195,15 +202,14 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
         <button className="sprint-modal-close" type="button" aria-label="Close" onClick={onCancel} disabled={saving}>×</button>
       </div>
 
-      <ErrorMessage>{error}</ErrorMessage>
+      <ErrorMessage message={error} />
 
       {loadingSprint ? (
-        <p className="project-loading" role="status">Loading sprint details…</p>
+        <LoadingState message="Loading sprint details…" as="p" className="project-loading" />
       ) : (
         <form className="project-form" onSubmit={handleSubmit}>
           <div className="project-field project-field-wide">
-            <label htmlFor="sprint-project">Project <span className="sprint-required">*</span></label>
-            <select
+            <FormField id="sprint-project" label="Project" required><select
               id="sprint-project"
               name="projectId"
               value={form.projectId}
@@ -215,12 +221,11 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>{project.name}</option>
               ))}
-            </select>
+            </select></FormField>
             {!form.projectId && <small className="sprint-field-error"></small>}
           </div>
           <div className="project-field project-field-wide">
-            <label htmlFor="sprint-name">Sprint name <span className="sprint-required">*</span></label>
-            <input
+            <FormField id="sprint-name" label="Sprint name" required><input
               id="sprint-name"
               name="name"
               value={form.name}
@@ -228,12 +233,11 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
               maxLength={200}
               required
               disabled={saving}
-            />
+            /></FormField>
             {!form.name.trim() && <small className="sprint-field-error"></small>}
           </div>
           <div className="project-field">
-            <label htmlFor="sprint-start-date">Start date <span className="sprint-required">*</span></label>
-            <input
+            <FormField id="sprint-start-date" label="Start date" required><input
               id="sprint-start-date"
               name="startDate"
               type="date"
@@ -242,12 +246,11 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
               min={!sprint ? getTodayDateInputValue() : undefined}
               required
               disabled={saving}
-            />
+            /></FormField>
             {!form.startDate && <small className="sprint-field-error">Start date is required.</small>}
           </div>
           <div className="project-field">
-            <label htmlFor="sprint-end-date">End date <span className="sprint-required">*</span></label>
-            <input
+            <FormField id="sprint-end-date" label="End date" required><input
               id="sprint-end-date"
               name="endDate"
               type="date"
@@ -257,12 +260,11 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
               min={!sprint ? (form.startDate > getTodayDateInputValue() ? form.startDate : getTodayDateInputValue()) : (form.startDate || undefined)}
               required
               disabled={saving}
-            />
+            /></FormField>
             {!form.endDate ? <small className="sprint-field-error"></small> : datesError ? <small className="sprint-field-error">{datesError}</small> : null}
           </div>
           <div className="project-field project-field-wide">
-            <label htmlFor="sprint-goal">Goal</label>
-            <textarea
+            <FormField id="sprint-goal" label="Goal"><textarea
               id="sprint-goal"
               name="goal"
               value={form.goal}
@@ -270,11 +272,10 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
               maxLength={500}
               rows={3}
               disabled={saving}
-            />
+            /></FormField>
           </div>
           {sprint && <div className="project-field">
-            <label htmlFor="sprint-status">Status</label>
-            <select
+            <FormField id="sprint-status" label="Status"><select
               id="sprint-status"
               name="status"
               value={form.status}
@@ -283,7 +284,7 @@ function SprintForm({ sprint, projects, onCancel, onSaved }) {
             >
               {!SPRINT_STATUSES.includes(form.status) && <option value={form.status}>{form.status}</option>}
               {SPRINT_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
-            </select>
+            </select></FormField>
           </div>}
           <div className="project-form-actions project-field-wide">
             <button className="button button-primary" type="submit" disabled={saving || !valid || projects.length === 0}>
@@ -439,10 +440,10 @@ function SprintsPage() {
       </div>
 
       {notice && <div className="project-notice" role="status">{notice}</div>}
-      <ErrorMessage>{projectsError}</ErrorMessage>
+      <ErrorMessage message={projectsError} />
 
       {canManage && formOpen && (
-        <div className="sprint-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) { setFormOpen(false); setEditingSprint(null); } }}>
+        <Modal backdropClassName="sprint-modal-backdrop" onClose={() => { setFormOpen(false); setEditingSprint(null); }}>
         <SprintForm
           key={editingSprint?.id ?? 'new'}
           sprint={editingSprint}
@@ -453,10 +454,10 @@ function SprintsPage() {
           }}
           onSaved={handleSaved}
         />
-        </div>
+        </Modal>
       )}
 
-      <div className="projects-toolbar sprint-toolbar">
+      <SearchFilterToolbar className="projects-toolbar sprint-toolbar">
         <label className="project-search">
           <span>Search sprints</span>
           <input
@@ -485,7 +486,7 @@ function SprintsPage() {
         </label>
         <label className="project-filter"><span>Status</span><select value={status} onChange={(event) => { setPage(1); setStatus(event.target.value); }}><option value="">All statuses</option><option value="Planned">Planned</option><option value="Active">Active</option><option value="Completed">Completed</option></select></label>
         <span className="project-count">{loading || searchInput.trim() !== search ? 'Loading sprints…' : `${totalCount ? (page - 1) * PAGE_SIZE + 1 : 0}-${Math.min(page * PAGE_SIZE, totalCount)} of ${totalCount}`}</span>
-      </div>
+      </SearchFilterToolbar>
 
       <ActiveFilterChips filters={[
         ...(search ? [{ key: 'search', label: 'Search', value: search, onRemove: () => { setSearchInput(''); setSearch(''); setPage(1); } }] : []),
@@ -496,20 +497,16 @@ function SprintsPage() {
       {!projectsLoading && projects.length === 0 && !projectsError && canManage && (
         <div className="project-notice">Create a project before adding sprints.</div>
       )}
-      <ErrorMessage>{listError}</ErrorMessage>
+      <ErrorMessage message={listError} />
 
       {loading ? (
-        <div className="project-state" role="status">Loading sprints…</div>
+        <LoadingState message="Loading sprints…" />
       ) : sprints.length === 0 ? (
-        <div className="project-state project-empty">
-          <h2>{search || projectId || status ? 'No matching sprints' : 'No sprints yet'}</h2>
-          <p>{search || projectId || status ? 'Try changing the search or filters.' : canManage ? 'Create a sprint to get started.' : 'No sprints are available yet.'}</p>
-          {!search && !projectId && !status && projects.length > 0 && canManage && !formOpen && (
+        <EmptyState title={search || projectId || status ? 'No matching sprints' : 'No sprints yet'} description={search || projectId || status ? 'Try changing the search or filters.' : canManage ? 'Create a sprint to get started.' : 'No sprints are available yet.'} action={!search && !projectId && !status && projects.length > 0 && canManage && !formOpen ? (
             <button className="button button-secondary" type="button" onClick={openCreateForm}>
               Create your first sprint
             </button>
-          )}
-        </div>
+          ) : null} />
       ) : (
         <div className="project-list">
           {sprints.map((sprint) => (
@@ -517,7 +514,7 @@ function SprintsPage() {
               <div className="project-card-main">
                 <div className="project-card-title-row">
                   <h2>{sprint.name}</h2>
-                  <span className={`sprint-status-badge sprint-status-${getSprintDisplayStatus(sprint).toLowerCase()}`}>{getSprintDisplayStatus(sprint)}</span>
+                  <StatusBadge status={getSprintDisplayStatus(sprint)} className={`sprint-status-badge sprint-status-${getSprintDisplayStatus(sprint).toLowerCase()}`} />
                 </div>
                 <Link className="sprint-project-name" to={`/projects/${sprint.projectId}`} onClick={(event) => event.stopPropagation()}>{projectNames.get(sprint.projectId) || 'Project unavailable'}</Link>
                 {sprint.goal && <p className="sprint-goal">{sprint.goal}</p>}
@@ -532,26 +529,8 @@ function SprintsPage() {
         </div>
       )}
 
-      <nav className="project-pagination" aria-label="Sprint pages">
-        <button
-          className="button button-secondary"
-          type="button"
-          onClick={() => setPage((current) => Math.max(1, current - 1))}
-          disabled={page <= 1 || loading}
-        >
-          Previous
-        </button>
-        <span>Page {page} of {totalPages}</span>
-        <button
-          className="button button-secondary"
-          type="button"
-          onClick={() => setPage((current) => current + 1)}
-          disabled={totalPages === 0 || page >= totalPages || loading}
-        >
-          Next
-        </button>
-      </nav>
-      {sprintToDelete && <div className="sprint-confirm-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setSprintToDelete(null); }}><section className="sprint-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="sprint-delete-title"><h2 id="sprint-delete-title">Delete sprint?</h2><p>Delete {sprintToDelete.name}? This can't be undone.</p><div><button className="button button-secondary" type="button" onClick={() => setSprintToDelete(null)}>Cancel</button><button className="button sprint-confirm-delete" type="button" onClick={() => handleDelete(sprintToDelete)} disabled={deletingId === sprintToDelete.id}>{deletingId === sprintToDelete.id ? 'Deleting…' : 'Delete'}</button></div></section></div>}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} disabled={loading} label="Sprint pages" />
+      {sprintToDelete && <Delete title="Delete sprint?" className="sprint-confirm-dialog" backdropClassName="sprint-confirm-backdrop" onCancel={() => setSprintToDelete(null)} onConfirm={() => handleDelete(sprintToDelete)} busy={deletingId === sprintToDelete.id} busyLabel="Deleting…">Delete {sprintToDelete.name}? This can't be undone.</Delete>}
     </section>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import ErrorMessage from '../../components/ErrorMessage';
+import { useParams } from 'react-router-dom';
+import DetailPage from '../../components/DetailPage';
+import { StatusBadge } from '../../components/badges';
 import { getApiErrorMessage } from '../../services/apiErrors';
 import { getProject } from '../../services/projectApi';
 
@@ -24,5 +25,11 @@ export default function ProjectDetailPage() {
     return () => { active = false; };
   }, [id]);
 
-  return <section className="task-detail-page"><Link to="/projects" className="task-detail-back">← Projects</Link>{loading ? <p role="status">Loading project…</p> : error ? <ErrorMessage>{error}</ErrorMessage> : project && <article className="task-detail-card"><div className="task-detail-heading"><div><p className="eyebrow">Project</p><h1>{project.name}</h1></div><span className={`project-status project-status-${String(project.status).toLowerCase().replace(/[^a-z]/g, '')}`}>{project.status}</span></div><p className="task-detail-description">{project.description || 'No description provided.'}</p><p className="project-inline-dates">{formatDate(project.startDate)} <span aria-hidden="true">→</span> {formatDate(project.endDate)}</p></article>}</section>;
+  return <DetailPage backTo="/projects" backLabel="Projects" loading={loading} loadingMessage="Loading project…" error={error}>
+    {project && <article className="task-detail-card">
+      <div className="task-detail-heading"><div><p className="eyebrow">Project</p><h1>{project.name}</h1></div><StatusBadge status={project.status} className={`project-status project-status-${String(project.status).toLowerCase().replace(/[^a-z]/g, '')}`} /></div>
+      <p className="task-detail-description">{project.description || 'No description provided.'}</p>
+      <p className="project-inline-dates">{formatDate(project.startDate)} <span aria-hidden="true">→</span> {formatDate(project.endDate)}</p>
+    </article>}
+  </DetailPage>;
 }

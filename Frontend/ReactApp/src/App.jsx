@@ -32,14 +32,14 @@ function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/tasks/:id" element={<TaskDetailPage />} />
           <Route path="/assignments" element={<AssignmentsPage />} />
-          <Route path="/comments" element={<CommentsPage />} />
           <Route element={<ManagerRoute />}>
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/projects/:id" element={<ProjectDetailPage />} />
             <Route path="/sprints" element={<SprintsPage />} />
             <Route path="/sprints/:id" element={<SprintDetailPage />} />
             <Route path="/tasks" element={<TasksPage />} />
-            <Route element={<AdminRoute />}>
+          <Route element={<AdminRoute />}>
+              <Route path="/comments" element={<CommentsPage />} />
               <Route path="/users" element={<UsersPage />} />
               <Route path="/audit-log" element={<AuditLogPage />} />
             </Route>

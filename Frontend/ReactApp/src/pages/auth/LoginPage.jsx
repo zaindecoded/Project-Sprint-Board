@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import ErrorMessage from '../../components/ErrorMessage';
+import FormField from '../../components/FormField';
 import { getApiErrorMessage } from '../../services/apiErrors';
 
 function LoginPage() {
@@ -39,11 +40,10 @@ function LoginPage() {
         <h1>Welcome back</h1>
         <h3 className="muted-text">Have a great day!</h3>
 
-        <ErrorMessage>{error}</ErrorMessage>
+        <ErrorMessage message={error} />
 
         <form className="login-form" onSubmit={handleSubmit}>
-          <label htmlFor="email">Email</label>
-          <input
+          <FormField id="email" label="Email" required><input
             id="email"
             name="email"
             type="email"
@@ -53,10 +53,10 @@ function LoginPage() {
             placeholder="you@company.com"
             required
             disabled={loading}
-          />
+          /></FormField>
 
-          <label htmlFor="password">Password</label>
           <div className="login-password-field">
+            <FormField id="password" label="Password" required>
             <input
               id="password"
               name="password"
@@ -68,6 +68,7 @@ function LoginPage() {
               required
               disabled={loading}
             />
+            </FormField>
             <button
               className="login-password-toggle"
               type="button"

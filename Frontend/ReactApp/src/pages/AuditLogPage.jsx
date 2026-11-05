@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import ErrorMessage from '../components/ErrorMessage';
+import { EmptyState, LoadingState } from '../components/LoadingEmptyState';
 import ActiveFilterChips from '../components/ActiveFilterChips';
 import { getApiErrorMessage } from '../services/apiErrors';
 import { getAuditLogFilters, getAuditLogs } from '../services/auditLogApi';
@@ -104,8 +105,8 @@ function AuditLogPage() {
                 <td>{item.entity}{item.entityId ? <small>#{item.entityId}</small> : null}</td>
               </tr>
             ))}
-            {loading && <tr><td colSpan="4" className="audit-state">Loading audit activity…</td></tr>}
-            {!loading && !error && result?.items?.length === 0 && <tr><td colSpan="4" className="audit-state">No audit events match these filters.</td></tr>}
+            {loading && <tr><LoadingState as="td" className="audit-state" message="Loading audit activity…" /></tr>}
+            {!loading && !error && result?.items?.length === 0 && <tr><EmptyState as="td" className="audit-state" title="No audit events match these filters." /></tr>}
           </tbody>
         </table>
       </div>

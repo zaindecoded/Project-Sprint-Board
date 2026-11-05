@@ -1,6 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import ErrorMessage from '../components/ErrorMessage';
+import FormField from '../components/FormField';
+import { StatusBadge } from '../components/badges';
+import { EmptyState, LoadingState } from '../components/LoadingEmptyState';
 import ActiveFilterChips from '../components/ActiveFilterChips';
+import Pagination from '../components/Pagination';
+import Delete from '../components/Delete';
+import SearchFilterToolbar from '../components/SearchFilterToolbar';
+import Modal from '../components/Modal';
+import IconActionButton from '../components/IconActionButton';
+import TaskSelector from '../components/TaskSelector';
 import { useAuth } from '../context/AuthContext';
 import { canManageWorkspace } from '../utils/permissions';
 import { getAssignmentDisplayStatus, getTodayDateInputValue } from '../utils/displayStatus';
@@ -12,8 +21,9 @@ import {
   getAssignments,
   updateAssignment
 } from '../services/assignmentApi';
-import { completeAssignedTask, getTask, getTasks } from '../services/taskApi';
+import { completeAssignedTask, getTask } from '../services/taskApi';
 import { getUsers } from '../services/userApi';
+import { createComment, getComments } from '../services/commentApi';
 
 const PAGE_SIZE = 10;
 
@@ -87,108 +97,8 @@ function getValidationMessage(error, fallback = 'Unable to save this assignment.
   return getApiErrorMessage(error, fallback);
 }
 
-function TaskPicker({ id, label, value, initialTask, onChange, disabled, required = true }) {
-  const [searchInput, setSearchInput] = useState('');
-  const [tasks, setTasks] = useState([]);
-  const [selectedTask, setSelectedTask] = useState(initialTask ?? null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (String(initialTask?.id) === String(value)) {
-      setSelectedTask(initialTask);
-    }
-  }, [initialTask, value]);
-
-  useEffect(() => {
-    if (!value || String(selectedTask?.id) === String(value)) {
-      return undefined;
-    }
-    let active = true;
-    getTask(value)
-      .then((task) => {
-        if (active) {
-          setSelectedTask(task);
-        }
-      })
-      .catch((requestError) => {
-        if (active) {
-          setError(getApiErrorMessage(requestError, 'Unable to load the selected task.'));
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [selectedTask?.id, value]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      setLoading(true);
-      setError('');
-      getTasks({ page: 1, pageSize: 50, search: searchInput.trim(), signal: controller.signal })
-        .then((result) => {
-          if (!controller.signal.aborted) {
-            setTasks(Array.isArray(result.items) ? result.items : []);
-          }
-        })
-        .catch((requestError) => {
-          if (!controller.signal.aborted && requestError.code !== 'ERR_CANCELED') {
-            setError(getApiErrorMessage(requestError, 'Unable to load tasks.'));
-          }
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) {
-            setLoading(false);
-          }
-        });
-    }, 250);
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [searchInput]);
-
-  const availableTasks = useMemo(() => {
-    if (selectedTask && String(selectedTask.id) === String(value) && !tasks.some((task) => String(task.id) === String(value))) {
-      return [selectedTask, ...tasks];
-    }
-    return tasks;
-  }, [selectedTask, tasks, value]);
-
-  return (
-    <div className="project-field project-field-wide assignment-task-picker">
-        <label htmlFor={id}>{label}{required && <> <span className="assignment-required" aria-hidden="true">*</span></>}</label>
-        <input
-          id={id}
-          role="combobox"
-          aria-autocomplete="list"
-          aria-expanded={open}
-          aria-controls={`${id}-options`}
-          value={String(value) === String(selectedTask?.id) ? selectedTask?.title ?? searchInput : searchInput}
-          placeholder="Search and select a task"
-          onFocus={() => setOpen(true)}
-          onBlur={() => setOpen(false)}
-          onChange={(event) => { setSearchInput(event.target.value); setSelectedTask(null); onChange('', null); setOpen(true); }}
-          disabled={disabled}
-          required={required && !value}
-        />
-        {open && <ul id={`${id}-options`} className="assignment-task-options" role="listbox">
-          {loading ? <li>Loading tasks…</li> : availableTasks.filter((task) => task.title.toLowerCase().includes(searchInput.toLowerCase())).slice(0, 8).map((task) => (
-            <li key={task.id}><button type="button" role="option" aria-selected={String(task.id) === String(value)} onMouseDown={(event) => event.preventDefault()} onClick={() => { setSelectedTask(task); setSearchInput(task.title); setOpen(false); onChange(task.id, task); }}>{task.title}</button></li>
-          ))}
-          {!loading && availableTasks.filter((task) => task.title.toLowerCase().includes(searchInput.toLowerCase())).length === 0 && <li>No tasks found.</li>}
-        </ul>}
-        {required && !value && <small className="assignment-field-error"></small>}
-        {value && <button className="assignment-task-clear" type="button" aria-label="Clear selected task" onClick={() => { setSearchInput(''); setSelectedTask(null); onChange('', null); }}>×</button>}
-        <ErrorMessage>{error}</ErrorMessage>
-      </div>
-  );
-}
-
 function TaskFilter({ value, initialTask, onChange }) {
-  return <TaskPicker id="assignment-task-filter" label="Task" value={value} initialTask={initialTask} onChange={onChange} required={false} />;
+  return <TaskSelector id="assignment-task-filter" label="Task" value={value} initialTask={initialTask} onChange={onChange} required={false} className="project-field project-field-wide assignment-task-picker" optionsClassName="assignment-task-options" clearClassName="assignment-task-clear" fieldErrorClassName="assignment-field-error" requiredClassName="assignment-required" placeholder="Search and select a task" />;
 }
 
 function AssignmentForm({ assignment, onCancel, onSaved }) {
@@ -324,7 +234,7 @@ function AssignmentForm({ assignment, onCancel, onSaved }) {
     const body = {
       taskId: Number(form.taskId),
       userId: Number(form.userId),
-      roleInTask: form.roleInTask.trim()
+      roleInTaskId: ({ Reviewer: 1, Observer: 2, Assignee: 3 })[form.roleInTask]
     };
     if (assignment && form.assignedAt) {
       body.assignedAt = new Date(form.assignedAt).toISOString();
@@ -336,7 +246,7 @@ function AssignmentForm({ assignment, onCancel, onSaved }) {
         await updateAssignment(assignment.id, body);
         onSaved('Assignment updated successfully.');
       } else {
-        await createAssignment({ ...body, roleInTask: body.roleInTask || null });
+        await createAssignment(body);
         onSaved('Assignment created successfully.');
       }
     } catch (requestError) {
@@ -357,13 +267,13 @@ function AssignmentForm({ assignment, onCancel, onSaved }) {
         </div>
         <button className="assignment-modal-close" type="button" aria-label="Close assignment form" onClick={onCancel} disabled={saving}>×</button>
       </div>
-      <ErrorMessage>{error}</ErrorMessage>
+      <ErrorMessage message={error} />
 
       {loadingAssignment ? (
-        <p className="project-loading" role="status">Loading assignment details…</p>
+        <LoadingState message="Loading assignment details…" as="p" className="project-loading" />
       ) : (
         <form className="project-form" onSubmit={handleSubmit}>
-          <TaskPicker
+          <TaskSelector
             id="assignment-task"
             label="Task"
             value={form.taskId}
@@ -374,22 +284,26 @@ function AssignmentForm({ assignment, onCancel, onSaved }) {
               setError('');
             }}
             disabled={saving}
+            className="project-field project-field-wide assignment-task-picker"
+            optionsClassName="assignment-task-options"
+            clearClassName="assignment-task-clear"
+            fieldErrorClassName="assignment-field-error"
+            requiredClassName="assignment-required"
+            placeholder="Search and select a task"
           />
           <div className="project-field project-field-wide">
-            <label htmlFor="assignment-user">Project member <span className="assignment-required" aria-hidden="true">*</span></label>
-            <select id="assignment-user" name="userId" value={form.userId} onChange={changeField} required disabled={saving || usersLoading || Boolean(usersError) || !form.taskId}>
+            <FormField id="assignment-user" label="Project member" required><select id="assignment-user" name="userId" value={form.userId} onChange={changeField} required disabled={saving || usersLoading || Boolean(usersError) || !form.taskId}>
               <option value="">{usersLoading ? 'Loading project members…' : 'Select a project member'}</option>
               {memberOptions.map((user) => (
                 <option key={user.id} value={user.id}>{`${user.firstName} ${user.lastName} · ${user.email}`}</option>
               ))}
               {form.userId && !selectedUserExists && <option value={form.userId}>{`Current member · ${form.userId}`}</option>}
-            </select>
+            </select></FormField>
             {form.taskId && !form.userId && <small className="assignment-field-error"></small>}
-            <ErrorMessage>{usersError}</ErrorMessage>
+            <ErrorMessage message={usersError} />
           </div>
           {assignment && <div className="project-field">
-            <label htmlFor="assignment-assigned-at">Assigned at</label>
-            <input
+            <FormField id="assignment-assigned-at" label="Assigned at"><input
               id="assignment-assigned-at"
               name="assignedAt"
               type="datetime-local"
@@ -397,18 +311,17 @@ function AssignmentForm({ assignment, onCancel, onSaved }) {
               onChange={changeField}
               max={taskEndDate ? `${taskEndDate}T23:59` : undefined}
               disabled={saving}
-            />
+            /></FormField>
           </div>}
           <div className="project-field">
-            <label htmlFor="assignment-role">Role in task <span className="assignment-required" aria-hidden="true">*</span></label>
-            <select
+            <FormField id="assignment-role" label="Role in task" required><select
               id="assignment-role"
               name="roleInTask"
               value={form.roleInTask}
               onChange={changeField}
               disabled={saving}
               required
-            ><option value="">Select a role</option><option>Assignee</option><option>Reviewer</option><option>Observer</option></select>
+            ><option value="">Select a role</option><option>Assignee</option><option>Reviewer</option><option>Observer</option></select></FormField>
           </div>
           {duplicateAssignment && <small className="assignment-field-error project-field-wide">This user already has this role on the selected task.</small>}
           {assignment && (
@@ -467,6 +380,44 @@ function AssignedTaskActions({ task, onUpdated }) {
   );
 }
 
+function AssignmentComments({ assignment, task, currentUser, onClose }) {
+  const [comments, setComments] = useState([]);
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await getComments({ page: 1, pageSize: 100, taskId: assignment.taskId });
+      setComments(result.items || []);
+      setError('');
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError, 'Unable to load comments.'));
+    } finally { setLoading(false); }
+  }, [assignment.taskId]);
+  useEffect(() => { load(); }, [load]);
+  async function submit(event) {
+    event.preventDefault();
+    if (!message.trim() || saving) return;
+    setSaving(true);
+    try {
+      await createComment({ taskId: assignment.taskId, userId: currentUser.id, message: message.trim() });
+      setMessage('');
+      await load();
+    } catch (requestError) { setError(getApiErrorMessage(requestError, 'Unable to add comment.')); }
+    finally { setSaving(false); }
+  }
+  return <Modal backdropClassName="assignment-modal-backdrop" onClose={onClose}>
+    <section className="assignment-modal assignment-comments-modal" role="dialog" aria-modal="true" aria-labelledby="assignment-comments-title">
+      <div className="project-form-heading"><div><h2 id="assignment-comments-title">Comments</h2><p>{task?.title || `Task ${assignment.taskId}`}</p></div><button className="assignment-modal-close" type="button" aria-label="Close comments" onClick={onClose}>×</button></div>
+      <ErrorMessage message={error} />
+      {loading ? <LoadingState message="Loading comments…" as="p" /> : comments.length ? <div className="assignment-comments-list">{comments.map((comment) => <article key={comment.id}><strong>{comment.userName || 'User'}</strong><p>{comment.message}</p><small>{formatDate(comment.createdAt)}</small></article>)}</div> : <EmptyState title="No comments yet" description="Start the conversation." />}
+      <form className="assignment-comment-form" onSubmit={submit}><FormField id="assignment-comment-message" label="Add a comment" required><textarea id="assignment-comment-message" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={2000} rows={3} required disabled={saving} /></FormField><button className="button button-primary" type="submit" disabled={saving || !message.trim()}>{saving ? 'Posting…' : 'Post comment'}</button></form>
+    </section>
+  </Modal>;
+}
+
 function AssignmentsPage() {
   const { user: currentUser } = useAuth();
   const canManage = canManageWorkspace(currentUser);
@@ -486,6 +437,7 @@ function AssignmentsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [assignmentToRemove, setAssignmentToRemove] = useState(null);
+  const [commentAssignment, setCommentAssignment] = useState(null);
 
   useEffect(() => {
     if (!formOpen && !assignmentToRemove) return undefined;
@@ -510,8 +462,8 @@ function AssignmentsPage() {
     return () => controller.abort();
   }, [canManage]);
 
-  const loadAssignments = useCallback(async (signal) => {
-    setLoading(true);
+  const loadAssignments = useCallback(async (signal, quiet = false) => {
+    if (!quiet) setLoading(true);
     setListError('');
     setTaskDetailsError('');
     try {
@@ -555,6 +507,12 @@ function AssignmentsPage() {
     loadAssignments(controller.signal);
     return () => controller.abort();
   }, [loadAssignments]);
+
+  useEffect(() => {
+    if (!canManage) return undefined;
+    const interval = window.setInterval(() => loadAssignments(undefined, true), 5000);
+    return () => window.clearInterval(interval);
+  }, [canManage, loadAssignments]);
 
   function updateFilter(name, value) {
     setPage(1);
@@ -631,11 +589,11 @@ function AssignmentsPage() {
 
       {notice && <div className="assignment-toast" role="status">{notice}</div>}
       {!currentUser?.id && (
-        <ErrorMessage>Your signed-in user details are unavailable, so assignments cannot be created.</ErrorMessage>
+        <ErrorMessage message="Your signed-in user details are unavailable, so assignments cannot be created." />
       )}
 
       {canManage && formOpen && (
-        <div className="assignment-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) { setFormOpen(false); setEditingAssignment(null); } }}>
+        <Modal backdropClassName="assignment-modal-backdrop" onClose={() => { setFormOpen(false); setEditingAssignment(null); }}>
         <AssignmentForm
           key={editingAssignment?.id ?? 'new'}
           assignment={editingAssignment}
@@ -645,12 +603,12 @@ function AssignmentsPage() {
           }}
           onSaved={handleSaved}
         />
-        </div>
+        </Modal>
       )}
 
-      <div className="assignments-toolbar">
+      <SearchFilterToolbar className="assignments-toolbar">
         <span className="project-count">{loading ? 'Loading…' : `${totalCount ? (page - 1) * PAGE_SIZE + 1 : 0}-${Math.min(page * PAGE_SIZE, totalCount)} of ${totalCount}`}</span>
-      </div>
+      </SearchFilterToolbar>
 
       <ActiveFilterChips filters={[
         ...(filters.taskId ? [{ key: 'task', label: 'Task', value: taskDetails[filters.taskId]?.title || `Task ${filters.taskId}`, onRemove: () => updateFilter('taskId', '') }] : []),
@@ -658,19 +616,15 @@ function AssignmentsPage() {
         ...(filters.isActive ? [{ key: 'status', label: 'Status', value: filters.isActive === 'true' ? 'Active' : 'Complete', onRemove: () => updateFilter('isActive', '') }] : [])
       ]} onClearAll={clearFilters} />
 
-      <ErrorMessage>{listError}</ErrorMessage>
-      <ErrorMessage>{taskDetailsError}</ErrorMessage>
+      <ErrorMessage message={listError} />
+      <ErrorMessage message={taskDetailsError} />
 
       {loading ? (
-        <div className="project-state" role="status">Loading assignments…</div>
+        <LoadingState message="Loading assignments…" />
       ) : listError ? null : assignments.length === 0 ? (
-        <div className="project-state project-empty">
-          <h2>{Object.values(filters).some(Boolean) ? 'No matching assignments' : 'No assignments yet'}</h2>
-          <p>{Object.values(filters).some(Boolean) ? 'Try changing your filters.' : canManage ? 'Create an assignment to get started.' : 'No assignments are available yet.'}</p>
-          {!Object.values(filters).some(Boolean) && canManage && !formOpen && currentUser?.id && (
+        <EmptyState title={Object.values(filters).some(Boolean) ? 'No matching assignments' : 'No assignments yet'} description={Object.values(filters).some(Boolean) ? 'Try changing your filters.' : canManage ? 'Create an assignment to get started.' : 'No assignments are available yet.'} action={!Object.values(filters).some(Boolean) && canManage && !formOpen && currentUser?.id ? (
             <button className="button button-secondary" type="button" onClick={openCreateForm}>Create your first assignment</button>
-          )}
-        </div>
+          ) : null} />
       ) : (
         <div className="task-table-wrap">
           <table className="task-table">
@@ -691,21 +645,19 @@ function AssignmentsPage() {
                 return (
                   <tr key={assignment.id}>
                     <td data-label="Task">
-                      <strong>{task?.title || `Task · ${assignment.taskId}`}</strong>
+                      <button type="button" className="assignment-task-link" onClick={() => setCommentAssignment(assignment)} aria-label={`View comments for ${task?.title || 'this task'}`}><strong>{task?.title || `Task · ${assignment.taskId}`}</strong><span>View comments</span></button>
                       {task?.description ? <span className="task-description-cell">{task.description}</span> : <span className="assignment-no-description">No description</span>}
                     </td>
                     <td data-label="Assigned user"><span className="assignment-user-cell"><span className="assignment-avatar" aria-hidden="true">{initials(assignment.userName || userLabel(assignment.userId, currentUser, users))}</span>{assignment.userName || userLabel(assignment.userId, currentUser, users)}</span></td>
                     <td data-label="Role in task"><span className={`assignment-role-badge assignment-role-${String(assignment.roleInTask || '').toLowerCase()}`}>{assignment.roleInTask || '—'}</span></td>
                     <td data-label="Assigned at" title={formatDate(assignment.assignedAt)}>{formatShortDate(assignment.assignedAt)}</td>
                     <td data-label="Status" className="assignment-status-cell">
-                      <span className={`assignment-status-badge ${assignment.isActive ? 'assignment-status-active' : 'assignment-status-complete'}`}>
-                        {assignment.isActive ? 'Active' : 'Complete'}
-                      </span>
+                      <StatusBadge status={assignment.isActive ? displayStatus : 'Complete'} className={`assignment-status-badge ${assignment.isActive && displayStatus === 'Active' ? 'assignment-status-active' : 'assignment-status-complete'}`} />
                     </td>
                     <td data-label="Actions" className="assignment-actions-cell">
                       {canManage && <div className="task-row-actions">
-                        <button className="user-icon-button" type="button" aria-label="Edit" title="Edit" onClick={() => openEditForm(assignment)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button>
-                        <button className="user-icon-button assignment-remove-icon" type="button" aria-label="Remove assignment" title="Remove assignment" onClick={() => setAssignmentToRemove(assignment)} disabled={deletingId === assignment.id}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></button>
+                        <IconActionButton action="edit" label="Edit" onClick={() => openEditForm(assignment)} />
+                        <IconActionButton action="delete" className="user-icon-button assignment-remove-icon" label="Remove assignment" onClick={() => setAssignmentToRemove(assignment)} disabled={deletingId === assignment.id} />
                       </div>}
                       {currentUser?.role === 'TeamMember' && task && <AssignedTaskActions task={task} onUpdated={() => loadAssignments()} />}
                     </td>
@@ -717,12 +669,9 @@ function AssignmentsPage() {
         </div>
       )}
 
-      <nav className="project-pagination" aria-label="Assignment pages">
-        <button className="button button-secondary" type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1 || loading}>Previous</button>
-        <span>Page {page} of {totalPages}</span>
-        <button className="button button-secondary" type="button" onClick={() => setPage((current) => current + 1)} disabled={totalPages === 0 || page >= totalPages || loading}>Next</button>
-      </nav>
-      {assignmentToRemove && <div className="assignment-confirm-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setAssignmentToRemove(null); }}><section className="assignment-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="assignment-remove-title"><h2 id="assignment-remove-title">Remove assignment?</h2><p>Remove {userLabel(assignmentToRemove.userId, currentUser, users)} from {taskDetails[assignmentToRemove.taskId]?.title || 'this task'}? This can't be undone.</p><div><button className="button button-secondary" type="button" onClick={() => setAssignmentToRemove(null)}>Cancel</button><button className="button assignment-confirm-delete" type="button" disabled={deletingId === assignmentToRemove.id} onClick={() => handleDelete(assignmentToRemove)}>{deletingId === assignmentToRemove.id ? 'Removing…' : 'Remove assignment'}</button></div></section></div>}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} disabled={loading} label="Assignment pages" />
+      {commentAssignment && <AssignmentComments assignment={commentAssignment} task={taskDetails[commentAssignment.taskId]} currentUser={currentUser} onClose={() => setCommentAssignment(null)} />}
+      {assignmentToRemove && <Delete title="Remove assignment?" className="assignment-confirm-dialog" confirmClassName="button assignment-confirm-delete" backdropClassName="assignment-confirm-backdrop" confirmLabel="Remove assignment" busyLabel="Removing…" onCancel={() => setAssignmentToRemove(null)} onConfirm={() => handleDelete(assignmentToRemove)} busy={deletingId === assignmentToRemove.id}>Remove {userLabel(assignmentToRemove.userId, currentUser, users)} from {taskDetails[assignmentToRemove.taskId]?.title || 'this task'}? This can't be undone.</Delete>}
     </section>
   );
 }

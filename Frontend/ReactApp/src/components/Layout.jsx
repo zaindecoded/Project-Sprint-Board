@@ -18,10 +18,10 @@ function Layout() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const visibleNavItems = user?.role === 'TeamMember'
-    ? navItems.filter((item) => item.to === '/dashboard' || item.to === '/assignments' || item.to === '/comments')
+    ? navItems.filter((item) => item.to === '/dashboard' || item.to === '/assignments')
     : user?.role?.toLowerCase() === 'admin'
       ? [...navItems, { to: '/users', label: 'Users' }, { to: '/audit-log', label: 'Audit log' }]
-      : navItems;
+      : navItems.filter((item) => item.to !== '/comments');
 
   function handleLogout() {
     logout();

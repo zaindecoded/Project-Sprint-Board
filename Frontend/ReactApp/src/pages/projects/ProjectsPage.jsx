@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ErrorMessage from '../../components/ErrorMessage';
+import FormField from '../../components/FormField';
+import { StatusBadge } from '../../components/badges';
+import { EmptyState, LoadingState } from '../../components/LoadingEmptyState';
 import ActiveFilterChips from '../../components/ActiveFilterChips';
+import Pagination from '../../components/Pagination';
+import IconActionButton from '../../components/IconActionButton';
+import Delete from '../../components/Delete';
+import SearchFilterToolbar from '../../components/SearchFilterToolbar';
 import { useAuth } from '../../context/AuthContext';
 import { createProject, deleteProject, getProject, getProjects, updateProject } from '../../services/projectApi';
 import { getApiErrorMessage } from '../../services/apiErrors';
@@ -138,7 +145,7 @@ function ProjectForm({ project, onCancel, onSaved }) {
       description: form.description.trim() || null,
       startDate: form.startDate || null,
       endDate: form.endDate || null,
-      status: form.status
+      statusId: ({ Planned: 1, Active: 2, OnHold: 3, Completed: 4, Cancelled: 5 })[form.status] ?? 2
     };
 
     try {
@@ -169,27 +176,25 @@ function ProjectForm({ project, onCancel, onSaved }) {
         </button>
       </div>
 
-      <ErrorMessage>{error}</ErrorMessage>
+      <ErrorMessage message={error} />
 
       {loadingProject ? (
-        <p className="project-loading" role="status">Loading project details…</p>
+        <LoadingState message="Loading project details…" as="p" className="project-loading" />
       ) : (
         <form className="project-form" onSubmit={handleSubmit} noValidate>
           <div className="project-field project-field-wide">
-            <label htmlFor="project-name">Project name <span className="required-mark" aria-hidden="true">*</span></label>
-            <input
+            <FormField id="project-name" label="Project name" required><input
               id="project-name"
               name="name"
               value={form.name}
               onChange={changeField}
               maxLength={200}
               disabled={saving}
-            />
+            /></FormField>
             {!nameValid && <span className="project-field-error"></span>}
           </div>
           <div className="project-field project-field-wide">
-            <label htmlFor="project-description">Description</label>
-            <textarea
+            <FormField id="project-description" label="Description"><textarea
               id="project-description"
               name="description"
               value={form.description}
@@ -197,11 +202,10 @@ function ProjectForm({ project, onCancel, onSaved }) {
               maxLength={1000}
               rows={3}
               disabled={saving}
-            />
+            /></FormField>
           </div>
           <div className="project-field">
-            <label htmlFor="project-start-date">Start date</label>
-            <input
+            <FormField id="project-start-date" label="Start date"><input
               id="project-start-date"
               name="startDate"
               type="date"
@@ -209,12 +213,11 @@ function ProjectForm({ project, onCancel, onSaved }) {
               onChange={changeField}
               min={!project ? getTodayDateInputValue() : undefined}
               disabled={saving}
-            />
+            /></FormField>
             {!datesValid && <span className="project-field-error">End date must be on or after the start date.</span>}
           </div>
           <div className="project-field">
-            <label htmlFor="project-end-date">End date</label>
-            <input
+            <FormField id="project-end-date" label="End date"><input
               id="project-end-date"
               name="endDate"
               type="date"
@@ -222,17 +225,16 @@ function ProjectForm({ project, onCancel, onSaved }) {
               onChange={changeField}
               min={!project ? (form.startDate > getTodayDateInputValue() ? form.startDate : getTodayDateInputValue()) : (form.startDate || undefined)}
               disabled={saving}
-            />
+            /></FormField>
           </div>
           <div className="project-field">
-            <label htmlFor="project-status">Project status</label>
-            <select id="project-status" name="status" value={form.status} onChange={changeField} disabled={saving}>
+            <FormField id="project-status" label="Project status"><select id="project-status" name="status" value={form.status} onChange={changeField} disabled={saving}>
               <option value="Planned">Planned</option>
               <option value="Active">Active</option>
               <option value="OnHold">On hold</option>
               <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
-            </select>
+            </select></FormField>
           </div>
           <div className="project-form-actions project-field-wide">
             <button className="button button-secondary" type="button" onClick={onCancel} disabled={saving}>Cancel</button>
@@ -343,8 +345,6 @@ function ProjectsPage() {
     }
   }
 
-  const canGoPrevious = page > 1;
-  const canGoNext = totalPages > 0 && page < totalPages;
 
   return (
     <section className="projects-page">
@@ -373,7 +373,7 @@ function ProjectsPage() {
         />
       )}
 
-      <div className="projects-toolbar">
+      <SearchFilterToolbar className="projects-toolbar">
         <label className="project-search">
           <span>Search projects</span>
           <input
@@ -387,27 +387,23 @@ function ProjectsPage() {
         <label className="project-filter"><span>Status</span><select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}><option value="">All statuses</option><option value="Active">Active</option><option value="Completed">Completed</option><option value="Planned">Planned</option><option value="OnHold">On hold</option><option value="Cancelled">Cancelled</option></select></label>
         <label className="project-filter"><span>Sort by</span><select value={sortBy} onChange={(event) => { setSortBy(event.target.value); setPage(1); }}><option value="newest">Newest</option><option value="name">Name A–Z</option><option value="endDate">End date</option></select></label>
         <span className="project-count">{totalCount ? (page - 1) * PAGE_SIZE + 1 : 0}-{Math.min(page * PAGE_SIZE, totalCount)} of {totalCount}</span>
-      </div>
+      </SearchFilterToolbar>
 
       <ActiveFilterChips filters={[
         ...(search ? [{ key: 'search', label: 'Search', value: search, onRemove: () => { setSearchInput(''); setSearch(''); setPage(1); } }] : []),
         ...(status ? [{ key: 'status', label: 'Status', value: status, onRemove: () => { setStatus(''); setPage(1); } }] : [])
       ]} onClearAll={() => { setSearchInput(''); setSearch(''); setStatus(''); setSortBy('newest'); setPage(1); }} />
 
-      <ErrorMessage>{listError}</ErrorMessage>
+      <ErrorMessage message={listError} />
 
       {loading ? (
-        <div className="project-state" role="status">Loading projects…</div>
+        <LoadingState message="Loading projects…" />
       ) : projects.length === 0 ? (
-        <div className="project-state project-empty">
-          <h2>{search || status ? 'No matching projects' : 'No projects yet'}</h2>
-          <p>{search || status ? 'Try adjusting your search or filters.' : 'Create a project to get started.'}</p>
-          {!search && !status && canManage && !formOpen && (
+        <EmptyState title={search || status ? 'No matching projects' : 'No projects yet'} description={search || status ? 'Try adjusting your search or filters.' : 'Create a project to get started.'} action={!search && !status && canManage && !formOpen ? (
             <button className="button button-secondary" type="button" onClick={openCreateForm}>
               Create your first project
             </button>
-          )}
-        </div>
+          ) : null} />
       ) : (
         <div className="project-list">
           {projects.map((project) => (
@@ -415,44 +411,21 @@ function ProjectsPage() {
               <div className="project-card-main">
                 <div className="project-card-title-row">
                   <h2>{project.name}</h2>
-                  <span className={`project-status project-status-${String(project.status || '').toLowerCase().replace(/[^a-z]/g, '')}`}>
-                    {getProjectDisplayStatus(project)}
-                  </span>
+                  <StatusBadge status={getProjectDisplayStatus(project)} className={`project-status project-status-${String(project.status || '').toLowerCase().replace(/[^a-z]/g, '')}`} />
                 </div>
-                {project.description && <p className="project-description">{project.description}</p>}
                 <p className="project-inline-dates">{formatInlineDate(project.startDate)} <span aria-hidden="true">→</span> {formatInlineDate(project.endDate)}</p>
               </div>
               {canManage && <div className="project-actions">
-                <button className="user-icon-button" type="button" aria-label="Edit project" title="Edit project" onClick={(event) => { event.stopPropagation(); openEditForm(project); }}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button>
-                <button className="user-icon-button project-delete-icon" type="button" aria-label={deletingId === project.id ? 'Deleting project' : 'Delete project'} title="Delete project" onClick={(event) => { event.stopPropagation(); setProjectToDelete(project); }} disabled={deletingId === project.id}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></button>
+                <IconActionButton action="edit" label="Edit project" onClick={(event) => { event.stopPropagation(); openEditForm(project); }} />
+                <IconActionButton action="delete" className="user-icon-button project-delete-icon" label={deletingId === project.id ? 'Deleting project' : 'Delete project'} onClick={(event) => { event.stopPropagation(); setProjectToDelete(project); }} disabled={deletingId === project.id} />
               </div>}
             </article>
           ))}
         </div>
       )}
 
-      <nav className="project-pagination" aria-label="Project pages">
-        <button
-          className="button button-secondary"
-          type="button"
-          onClick={() => setPage((current) => Math.max(1, current - 1))}
-          disabled={!canGoPrevious || loading}
-        >
-          Previous
-        </button>
-        <span>
-          Page {page} of {totalPages}
-        </span>
-        <button
-          className="button button-secondary"
-          type="button"
-          onClick={() => setPage((current) => current + 1)}
-          disabled={!canGoNext || loading}
-        >
-          Next
-        </button>
-      </nav>
-      {projectToDelete && <div className="project-confirm-backdrop" role="presentation"><section className="project-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="project-delete-title"><h2 id="project-delete-title">Delete project?</h2><p>Delete {projectToDelete.name}? This can't be undone.</p><div><button className="button button-secondary" type="button" onClick={() => setProjectToDelete(null)}>Cancel</button><button className="button project-confirm-delete" type="button" onClick={() => handleDelete(projectToDelete)} disabled={deletingId === projectToDelete.id}>{deletingId === projectToDelete.id ? 'Deleting…' : 'Delete'}</button></div></section></div>}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} disabled={loading} label="Project pages" />
+      {projectToDelete && <Delete title="Delete project?" className="project-confirm-dialog" backdropClassName="project-confirm-backdrop" onCancel={() => setProjectToDelete(null)} onConfirm={() => handleDelete(projectToDelete)} busy={deletingId === projectToDelete.id} busyLabel="Deleting…">Delete {projectToDelete.name}? This can't be undone.</Delete>}
     </section>
   );
 }

@@ -3,6 +3,8 @@ import { Bar, Doughnut } from 'react-chartjs-2';
 import { Link } from 'react-router-dom';
 import { ArcElement, BarElement, CategoryScale, Chart as ChartJS, DoughnutController, Legend, LinearScale, Tooltip } from 'chart.js';
 import ErrorMessage from '../../components/ErrorMessage';
+import { StatusBadge } from '../../components/badges';
+import { LoadingState } from '../../components/LoadingEmptyState';
 import { useAuth } from '../../context/AuthContext';
 import { canManageWorkspace } from '../../utils/permissions';
 import { getApiErrorMessage } from '../../services/apiErrors';
@@ -61,24 +63,38 @@ function DashboardPage() {
   const [attentionError, setAttentionError] = useState('');
 
   useEffect(() => {
-    const controller = new AbortController();
-    getDashboardSummary(controller.signal)
-      .then(setSummary)
-      .catch((requestError) => {
-        if (requestError.code !== 'ERR_CANCELED') setError(getApiErrorMessage(requestError, 'Unable to load dashboard summary.'));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    getDashboardAttentionTasks(controller.signal)
-      .then((result) => setAttentionTasks(Array.isArray(result.items) ? result.items : []))
-      .catch((requestError) => {
-        if (requestError.code !== 'ERR_CANCELED') setAttentionError(getApiErrorMessage(requestError, 'Unable to load tasks needing attention.'));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setAttentionLoading(false);
-      });
-    return () => controller.abort();
+    let active = true;
+    const refresh = async () => {
+      const controller = new AbortController();
+      const [summaryResult, attentionResult] = await Promise.allSettled([
+        getDashboardSummary(controller.signal),
+        getDashboardAttentionTasks(controller.signal)
+      ]);
+      if (active) {
+        if (summaryResult.status === 'fulfilled') {
+          setSummary(summaryResult.value);
+          setError('');
+        } else if (summaryResult.reason.code !== 'ERR_CANCELED') {
+          setError(getApiErrorMessage(summaryResult.reason, 'Unable to load dashboard summary.'));
+        }
+        if (attentionResult.status === 'fulfilled') {
+          setAttentionTasks(Array.isArray(attentionResult.value.items) ? attentionResult.value.items : []);
+          setAttentionError('');
+        } else if (attentionResult.reason.code !== 'ERR_CANCELED') {
+          setAttentionError(getApiErrorMessage(attentionResult.reason, 'Unable to load tasks needing attention.'));
+        }
+        if (active) {
+          setLoading(false);
+          setAttentionLoading(false);
+        }
+      }
+    };
+    refresh();
+    const interval = window.setInterval(refresh, 5000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, []);
 
   const totalTasks = count(summary?.totalTasks);
@@ -167,9 +183,9 @@ function DashboardPage() {
       </header>
 
       {loading ? (
-        <div className="project-state" role="status">Loading dashboard…</div>
+        <LoadingState message="Loading dashboard…" />
       ) : error ? (
-        <ErrorMessage>{error}</ErrorMessage>
+        <ErrorMessage message={error} />
       ) : (
         <>
           <section className="simple-dashboard-grid" aria-label="Workspace totals">
@@ -215,9 +231,9 @@ function DashboardPage() {
               {!attentionLoading && !attentionError && <span className="dashboard-total-pill">{attentionTasks.length}</span>}
             </div>
             {attentionLoading ? (
-              <div className="dashboard-inline-state" role="status">Loading tasks…</div>
+              <LoadingState message="Loading tasks…" className="dashboard-inline-state" />
             ) : attentionError ? (
-              <ErrorMessage>{attentionError}</ErrorMessage>
+              <ErrorMessage message={attentionError} />
             ) : attentionTasks.length ? (
               <ul className="dashboard-priority-task-list">
                 {attentionTasks.map((task) => {
@@ -227,7 +243,7 @@ function DashboardPage() {
                     <div className="dashboard-priority-task-main">
                       <strong>{task.title}</strong>
                       <div className="dashboard-priority-task-meta">
-                        <span className={`dashboard-status-pill dashboard-status-${String(task.status).toLowerCase()}`}>{getStatusLabel(task.status)}</span>
+                        <StatusBadge status={task.status} label={getStatusLabel(task.status)} className={`dashboard-status-pill dashboard-status-${String(task.status).toLowerCase()}`} />
                         <span className={`dashboard-due-date${due.overdue || due.dueToday ? ' dashboard-due-urgent' : ''}`} title={due.title}>{due.label}</span>
                       </div>
                     </div>

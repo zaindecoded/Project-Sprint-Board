@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import ErrorMessage from '../components/ErrorMessage';
+import FormField from '../components/FormField';
+import { StatusBadge } from '../components/badges';
+import { EmptyState, LoadingState } from '../components/LoadingEmptyState';
 import ActiveFilterChips from '../components/ActiveFilterChips';
+import Pagination from '../components/Pagination';
+import Delete from '../components/Delete';
+import SearchFilterToolbar from '../components/SearchFilterToolbar';
+import Modal from '../components/Modal';
+import IconActionButton from '../components/IconActionButton';
+import TaskSelector from '../components/TaskSelector';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { canManageWorkspace } from '../utils/permissions';
@@ -12,7 +21,7 @@ import {
   getComments,
   updateComment
 } from '../services/commentApi';
-import { getTask, getTasks } from '../services/taskApi';
+import { getTask } from '../services/taskApi';
 import { getUsers } from '../services/userApi';
 
 const PAGE_SIZE = 10;
@@ -109,87 +118,6 @@ function getValidationMessage(error, fallback = 'Unable to save this comment.') 
   return getApiErrorMessage(error, fallback);
 }
 
-function TaskSelector({ id, label = 'Task', value, initialTask, onChange, disabled, required = true, placeholder = 'Search tasks by title' }) {
-  const [search, setSearch] = useState('');
-  const [tasks, setTasks] = useState([]);
-  const [selectedTask, setSelectedTask] = useState(initialTask ?? null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (String(initialTask?.id) === String(value)) {
-      setSelectedTask(initialTask);
-    }
-  }, [initialTask, value]);
-
-  useEffect(() => {
-    if (!value || String(selectedTask?.id) === String(value)) {
-      return undefined;
-    }
-    let active = true;
-    getTask(value)
-      .then((task) => {
-        if (active) {
-          setSelectedTask(task);
-        }
-      })
-      .catch((requestError) => {
-        if (active) {
-          setError(getApiErrorMessage(requestError, 'Unable to load the selected task.'));
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [selectedTask?.id, value]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      setLoading(true);
-      setError('');
-      getTasks({ page: 1, pageSize: 50, search: search.trim(), signal: controller.signal })
-        .then((result) => {
-          if (!controller.signal.aborted) {
-            setTasks(Array.isArray(result.items) ? result.items : []);
-          }
-        })
-        .catch((requestError) => {
-          if (!controller.signal.aborted && requestError.code !== 'ERR_CANCELED') {
-            setError(getApiErrorMessage(requestError, 'Unable to load tasks.'));
-          }
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) {
-            setLoading(false);
-          }
-        });
-    }, 250);
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [search]);
-
-  const availableTasks = String(selectedTask?.id) === String(value) && !tasks.some((task) => String(task.id) === String(value))
-    ? [selectedTask, ...tasks]
-    : tasks;
-
-  const matches = availableTasks.filter((task) => task.title.toLowerCase().includes(search.toLowerCase())).slice(0, 8);
-  return <div className="comment-task-combobox">
-    {label && <label htmlFor={id}>{label}{required && <> <span className="comment-required">*</span></>}</label>}
-    <input id={id} aria-label={label || 'Filter comments by task'} role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={`${id}-options`} value={String(value) === String(selectedTask?.id) ? selectedTask?.title ?? search : search} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)} onChange={(event) => { setSearch(event.target.value); setSelectedTask(null); onChange('', null); setOpen(true); }} placeholder={placeholder} disabled={disabled} required={required && !value} />
-    {open && <ul id={`${id}-options`} className="comment-task-options" role="listbox">
-      {loading ? <li>Loading tasks…</li> : matches.map((task) => <li key={task.id}><button type="button" role="option" aria-selected={String(task.id) === String(value)} onMouseDown={(event) => event.preventDefault()} onClick={() => { setSelectedTask(task); setSearch(task.title); setOpen(false); onChange(task.id, task); }}>{task.title}</button></li>)}
-      {!loading && !matches.length && <li>No tasks found.</li>}
-    </ul>}
-    {required && !value && <small className="comment-field-error"></small>}
-    {value && <button type="button" className="comment-task-clear" aria-label="Clear selected task" onClick={() => { setSearch(''); setSelectedTask(null); onChange('', null); }}>×</button>}
-    <ErrorMessage>{error}</ErrorMessage>
-  </div>;
-}
-
 function TaskFilter({ value, initialTask, onChange }) {
   return <TaskSelector id="comments-task-filter" label="" value={value} initialTask={initialTask} required={false} placeholder="All tasks · search by title" onChange={(taskId) => onChange(taskId)} />;
 }
@@ -284,10 +212,10 @@ function CommentForm({ comment, currentUser, users, onCancel, onSaved }) {
         <div className="comment-modal-author"><span className="comment-avatar" aria-hidden="true">{initials(authorName)}</span><span>Commenting as <strong>{authorName}</strong></span></div>
         <button className="comment-modal-close" type="button" aria-label="Close comment form" onClick={onCancel} disabled={saving}>×</button>
       </div>
-      <ErrorMessage>{error}</ErrorMessage>
+      <ErrorMessage message={error} />
 
       {loadingComment ? (
-        <p className="project-loading" role="status">Loading comment details…</p>
+        <LoadingState message="Loading comment details…" as="p" className="project-loading" />
       ) : (
         <form className="project-form" onSubmit={handleSubmit}>
           <TaskSelector
@@ -303,8 +231,7 @@ function CommentForm({ comment, currentUser, users, onCancel, onSaved }) {
             disabled={saving}
           />
           <div className="project-field project-field-wide">
-            <label htmlFor="comment-message">Comment <span className="comment-required">*</span></label>
-            <textarea
+            <FormField id="comment-message" label="Comment" required><textarea
               id="comment-message"
               value={form.message}
               onChange={(event) => {
@@ -315,7 +242,7 @@ function CommentForm({ comment, currentUser, users, onCancel, onSaved }) {
               rows={5}
               required
               disabled={saving}
-            />
+            /></FormField>
             {!form.message.trim() && <small className="comment-field-error"></small>}
             <span className="comment-character-count">{form.message.length}/{MAX_MESSAGE_LENGTH}</span>
           </div>
@@ -350,6 +277,7 @@ function CommentsPage() {
   const [editingComment, setEditingComment] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [commentToDelete, setCommentToDelete] = useState(null);
 
   useEffect(() => {
     if (!formOpen) return undefined;
@@ -457,15 +385,19 @@ function CommentsPage() {
     await loadComments();
   }
 
-  async function handleDelete(comment) {
-    if (!window.confirm('Delete this comment? It will be removed from the normal comment list.')) {
-      return;
-    }
+  function handleDelete(comment) {
+    setCommentToDelete(comment);
+  }
+
+  async function confirmDelete() {
+    const comment = commentToDelete;
+    if (!comment) return;
     setDeletingId(comment.id);
     setListError('');
     setNotice('');
     try {
       await deleteComment(comment.id);
+      setCommentToDelete(null);
       setNotice('Comment deleted successfully.');
       if (comments.length === 1 && page > 1) {
         setPage((current) => current - 1);
@@ -501,11 +433,11 @@ function CommentsPage() {
 
       {notice && <div className="comments-toast" role="status">{notice}</div>}
       {!currentUser?.id && (
-        <ErrorMessage>Your signed-in user details are unavailable, so comments cannot be created.</ErrorMessage>
+        <ErrorMessage message="Your signed-in user details are unavailable, so comments cannot be created." />
       )}
 
       {formOpen && (
-        <div className="comment-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) { setFormOpen(false); setEditingComment(null); } }}>
+        <Modal backdropClassName="comment-modal-backdrop" onClose={() => { setFormOpen(false); setEditingComment(null); }}>
         <CommentForm
           key={editingComment?.id ?? 'new'}
           comment={editingComment}
@@ -517,10 +449,10 @@ function CommentsPage() {
           }}
           onSaved={handleSaved}
         />
-        </div>
+        </Modal>
       )}
 
-      <div className="comments-toolbar">
+      <SearchFilterToolbar className="comments-toolbar">
           <input
             className="comments-search"
             type="search"
@@ -552,7 +484,7 @@ function CommentsPage() {
             </select>
         )}
         <span className="project-count">{loading || searchInput.trim() !== search ? 'Loading…' : `${totalCount ? (page - 1) * PAGE_SIZE + 1 : 0}-${Math.min(page * PAGE_SIZE, totalCount)} of ${totalCount}`}</span>
-      </div>
+      </SearchFilterToolbar>
 
       <ActiveFilterChips filters={[
         ...(search ? [{ key: 'search', label: 'Search', value: search, onRemove: () => { setSearchInput(''); setSearch(''); setPage(1); } }] : []),
@@ -560,19 +492,15 @@ function CommentsPage() {
         ...(userId ? [{ key: 'user', label: 'Author', value: userLabel(Number(userId), currentUser, users), onRemove: () => { setUserId(''); setPage(1); } }] : [])
       ]} onClearAll={clearFilters} />
 
-      <ErrorMessage>{listError}</ErrorMessage>
-      <ErrorMessage>{taskDetailsError}</ErrorMessage>
+      <ErrorMessage message={listError} />
+      <ErrorMessage message={taskDetailsError} />
 
       {loading ? (
-        <div className="project-state" role="status">Loading comments…</div>
+        <LoadingState message="Loading comments…" />
       ) : listError ? null : comments.length === 0 ? (
-        <div className="project-state project-empty">
-          <h2>{search || taskId || userId ? 'No comments match your filters' : 'No comments yet'}</h2>
-          <p>{search || taskId || userId ? 'Try changing your search or filters.' : 'Add a comment to a task to get started.'}</p>
-          {!search && !taskId && !userId && !formOpen && currentUser?.id && (
+        <EmptyState title={search || taskId || userId ? 'No comments match your filters' : 'No comments yet'} description={search || taskId || userId ? 'Try changing your search or filters.' : 'Add a comment to a task to get started.'} action={!search && !taskId && !userId && !formOpen && currentUser?.id ? (
             <button className="button button-secondary" type="button" onClick={openCreateForm}>Create your first comment</button>
-          )}
-        </div>
+          ) : null} />
       ) : (
         <>
         <div className="comments-feed">
@@ -609,14 +537,12 @@ function CommentsPage() {
                     <td data-label="Created date">{formatDate(comment.createdAt)}</td>
                     <td data-label="Updated date">{formatDate(comment.updatedAt)}</td>
                     <td data-label="Status">
-                      <span className={`project-status${comment.isActive ? ' project-status-active' : ''}`}>
-                        {comment.isActive ? 'Active' : 'Inactive'}
-                      </span>
+                      <StatusBadge status={comment.isActive ? 'Active' : 'Inactive'} className={`project-status project-status-${comment.isActive ? 'active' : 'inactive'}`} />
                     </td>
                     <td data-label="Actions">
                       {canManage && <div className="task-row-actions">
-                        <button className="user-icon-button" type="button" aria-label="Edit comment" title="Edit comment" onClick={() => openEditForm(comment)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button>
-                        <button className="user-icon-button" type="button" aria-label={deletingId === comment.id ? 'Deleting comment' : 'Delete comment'} title="Delete comment" onClick={() => handleDelete(comment)} disabled={deletingId === comment.id}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></button>
+                        <IconActionButton action="edit" label="Edit comment" onClick={() => openEditForm(comment)} />
+                        <IconActionButton action="delete" label={deletingId === comment.id ? 'Deleting comment' : 'Delete comment'} onClick={() => handleDelete(comment)} disabled={deletingId === comment.id} />
                       </div>}
                     </td>
                   </tr>
@@ -628,11 +554,8 @@ function CommentsPage() {
         </>
       )}
 
-      <nav className="project-pagination" aria-label="Comment pages">
-        <button className="button button-secondary" type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1 || loading}>Previous</button>
-        <span>Page {page} of {totalPages}</span>
-        <button className="button button-secondary" type="button" onClick={() => setPage((current) => current + 1)} disabled={totalPages === 0 || page >= totalPages || loading}>Next</button>
-      </nav>
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} disabled={loading} label="Comment pages" />
+      {commentToDelete && <Delete title="Delete comment?" className="project-confirm-dialog" backdropClassName="project-confirm-backdrop" busyLabel="Deleting…" onCancel={() => setCommentToDelete(null)} onConfirm={confirmDelete} busy={deletingId === commentToDelete.id}>Delete this comment? It will be removed from the normal comment list.</Delete>}
     </section>
   );
 }

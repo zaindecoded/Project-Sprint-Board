@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import ErrorMessage from '../components/ErrorMessage';
+import FormField from '../components/FormField';
+import { StatusBadge } from '../components/badges';
+import { EmptyState, LoadingState } from '../components/LoadingEmptyState';
 import ActiveFilterChips from '../components/ActiveFilterChips';
 import { getApiErrorMessage } from '../services/apiErrors';
 import { activateUser, createUser, deleteUser, getUsers, updateUser } from '../services/userApi';
@@ -175,7 +178,7 @@ function UsersPage() {
       </div>
 
       {notice && <div className="users-toast" role="status">{notice}</div>}
-      <ErrorMessage>{error}</ErrorMessage>
+      <ErrorMessage message={error} />
 
       {formOpen && <div className="user-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) closeForm(); }}>
         <section className="user-modal" role="dialog" aria-modal="true" aria-labelledby="user-form-title">
@@ -184,35 +187,29 @@ function UsersPage() {
             <button className="user-modal-close" type="button" aria-label="Close" onClick={closeForm} disabled={saving}>×</button>
           </div>
 
-        <ErrorMessage>{error}</ErrorMessage>
+        <ErrorMessage message={error} />
         <form className="project-form" onSubmit={handleSubmit}>
           <div className="project-field">
-            <label htmlFor="user-first-name">First name{editingUserId === null && <span aria-hidden="true"> *</span>}</label>
-            <input id="user-first-name" name="firstName" value={form.firstName} onChange={changeField} maxLength={100} autoComplete="given-name" required={editingUserId === null} disabled={saving} />
+            <FormField id="user-first-name" label="First name" required={editingUserId === null}><input id="user-first-name" name="firstName" value={form.firstName} onChange={changeField} maxLength={100} autoComplete="given-name" required={editingUserId === null} disabled={saving} /></FormField>
           </div>
           <div className="project-field">
-            <label htmlFor="user-last-name">Last name{editingUserId === null && <span aria-hidden="true"> *</span>}</label>
-            <input id="user-last-name" name="lastName" value={form.lastName} onChange={changeField} maxLength={100} autoComplete="family-name" required={editingUserId === null} disabled={saving} />
+            <FormField id="user-last-name" label="Last name" required={editingUserId === null}><input id="user-last-name" name="lastName" value={form.lastName} onChange={changeField} maxLength={100} autoComplete="family-name" required={editingUserId === null} disabled={saving} /></FormField>
           </div>
           <div className="project-field">
-            <label htmlFor="user-email">Email{editingUserId === null && <span aria-hidden="true"> *</span>}</label>
-            <input id="user-email" name="email" type="email" value={form.email} onChange={changeField} maxLength={200} autoComplete="email" required={editingUserId === null} disabled={saving} />
+            <FormField id="user-email" label="Email" required={editingUserId === null}><input id="user-email" name="email" type="email" value={form.email} onChange={changeField} maxLength={200} autoComplete="email" required={editingUserId === null} disabled={saving} /></FormField>
           </div>
           <div className="project-field">
-            <label htmlFor="user-name">Username{editingUserId === null && <span aria-hidden="true"> *</span>}</label>
-            <input id="user-name" name="userName" value={form.userName} onChange={changeField} maxLength={100} autoComplete="username" required={editingUserId === null} disabled={saving} />
+            <FormField id="user-name" label="Username" required={editingUserId === null}><input id="user-name" name="userName" value={form.userName} onChange={changeField} maxLength={100} autoComplete="username" required={editingUserId === null} disabled={saving} /></FormField>
           </div>
           <div className="project-field">
-            <label htmlFor="user-password">{editingUserId !== null ? 'New password' : 'Temporary password *'}</label>
-            <input id="user-password" name="password" type="password" value={form.password} onChange={changeField} autoComplete="new-password" required={editingUserId === null} disabled={saving} />
+            <FormField id="user-password" label={editingUserId !== null ? 'New password' : 'Temporary password'} required={editingUserId === null}><input id="user-password" name="password" type="password" value={form.password} onChange={changeField} autoComplete="new-password" required={editingUserId === null} disabled={saving} /></FormField>
           </div>
           <div className="project-field">
-            <label htmlFor="user-role">Role{editingUserId === null && <span aria-hidden="true"> *</span>}</label>
-            <select id="user-role" name="role" value={form.role} onChange={changeField} required={editingUserId === null} disabled={saving}>
+            <FormField id="user-role" label="Role" required={editingUserId === null}><select id="user-role" name="role" value={form.role} onChange={changeField} required={editingUserId === null} disabled={saving}>
               <option value="Admin">Admin</option>
               <option value="ProjectManager">Project Manager</option>
               <option value="TeamMember">Team Member</option>
-            </select>
+            </select></FormField>
           </div>
           <div className="project-form-actions project-field-wide">
             <button className="button button-primary" type="submit" disabled={saving}>
@@ -237,7 +234,7 @@ function UsersPage() {
           ...(roleFilter ? [{ key: 'role', label: 'Role', value: roleFilter === 'ProjectManager' ? 'Project Manager' : roleFilter === 'TeamMember' ? 'Team Member' : roleFilter, onRemove: () => { setRoleFilter(''); setPage(1); } }] : []),
           ...(statusFilter ? [{ key: 'status', label: 'Status', value: statusFilter === 'active' ? 'Active' : 'Inactive', onRemove: () => { setStatusFilter(''); setPage(1); } }] : [])
         ]} onClearAll={() => { setSearch(''); setRoleFilter(''); setStatusFilter(''); setPage(1); }} />
-        {loadingUsers ? <p role="status">Loading users…</p> : filteredUsers.length === 0 ? <div className="users-empty"><p>{users.length ? 'No users match these filters.' : 'No users found.'}</p></div> : (
+        {loadingUsers ? <LoadingState message="Loading users…" as="p" /> : filteredUsers.length === 0 ? <EmptyState title={users.length ? 'No users match these filters.' : 'No users found.'} /> : (
           <div className="task-table-wrap">
             <table className="task-table users-table">
               <thead><tr><th>Name</th><th>Email</th><th>Username</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
@@ -250,7 +247,7 @@ function UsersPage() {
                     <td data-label="Role">
                       <span className={`user-role-badge user-role-${user.role === 'ProjectManager' ? 'manager' : user.role === 'TeamMember' ? 'member' : 'admin'}`}>{user.role === 'ProjectManager' ? 'Project Manager' : user.role === 'TeamMember' ? 'Team Member' : user.role}</span>
                     </td>
-                    <td data-label="Status"><span className={`user-status-badge ${user.isActive ? 'user-status-active' : 'user-status-inactive'}`}>{user.isActive ? 'Active' : 'Inactive'}</span></td>
+                    <td data-label="Status"><StatusBadge status={user.isActive ? 'Active' : 'Inactive'} className={`user-status-badge ${user.isActive ? 'user-status-active' : 'user-status-inactive'}`} /></td>
                     <td data-label="Actions">
                       <div className="user-actions">
                         <button className="user-icon-button" type="button" aria-label={`Edit ${user.firstName} ${user.lastName}`} title="Edit user" onClick={() => startEditing(user)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button>

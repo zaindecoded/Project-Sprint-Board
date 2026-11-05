@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ErrorMessage from '../components/ErrorMessage';
+import FormField from '../components/FormField';
+import { PriorityBadge, StatusBadge } from '../components/badges';
+import { EmptyState, LoadingState } from '../components/LoadingEmptyState';
 import ActiveFilterChips from '../components/ActiveFilterChips';
+import Pagination from '../components/Pagination';
+import Delete from '../components/Delete';
 import { getProjects } from '../services/projectApi';
 import { getSprint, getSprints } from '../services/sprintApi';
 import { getTaskStatusHistory } from '../services/statusHistoryApi';
@@ -15,6 +20,7 @@ const PAGE_SIZE = 10;
 const LOOKUP_PAGE_SIZE = 100;
 const TASK_PRIORITIES = ['Low', 'Medium', 'High', 'Critical'];
 const TASK_STATUSES = ['Todo', 'InProgress', 'Blocked', 'InReview', 'Done', 'Cancelled'];
+const TASK_STATUS_BY_ID = { 1: 'Todo', 2: 'InProgress', 3: 'Blocked', 4: 'InReview', 5: 'Done', 6: 'Cancelled' };
 const EMPTY_FORM = {
   projectId: '',
   sprintId: '',
@@ -143,9 +149,9 @@ function TaskHistoryPanel({ task, onClose }) {
         <button className="button button-secondary" type="button" onClick={onClose}>Close history</button>
       </div>
 
-      <ErrorMessage>{error}</ErrorMessage>
+      <ErrorMessage message={error} />
       {loading ? (
-        <p className="project-loading" role="status">Loading task history…</p>
+        <LoadingState message="Loading task history…" as="p" className="project-loading" />
       ) : error ? null : history.length === 0 ? (
         <div className="task-history-empty">No status history has been recorded for this task.</div>
       ) : (
@@ -153,9 +159,9 @@ function TaskHistoryPanel({ task, onClose }) {
           {history.map((entry) => (
             <li className="task-history-entry" key={entry.id}>
               <div className="task-history-transition">
-                <span>{entry.oldStatus}</span>
+                <span>{TASK_STATUS_BY_ID[entry.oldStatusId] ?? entry.oldStatusId}</span>
                 <span aria-hidden="true">→</span>
-                <span>{entry.newStatus}</span>
+                <span>{TASK_STATUS_BY_ID[entry.newStatusId] ?? entry.newStatusId}</span>
               </div>
               <dl className="task-history-details">
                 <div>
@@ -230,8 +236,8 @@ function TaskRiskPanel({ task, onClose, onEvaluatingChange }) {
         daysRemaining,
         progressPercentage: task.progressPercentage,
         isBlocked: task.status === 'Blocked',
-        priority: task.priority,
-        currentStatus: task.status,
+        priorityId: task.priorityId,
+        currentStatusId: task.statusId,
         numberOfStatusChanges: Array.isArray(history) ? history.length : 0
       }, controller.signal);
       setResult(evaluation);
@@ -263,7 +269,7 @@ function TaskRiskPanel({ task, onClose, onEvaluatingChange }) {
       </div>
 
      
-      <ErrorMessage>{error}</ErrorMessage>
+      <ErrorMessage message={error} />
 
       {loadingResult ? <p>Loading saved evaluation...</p> : !result ? (
         <div className="task-risk-initial">
@@ -491,24 +497,22 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
         </div>
         <button className="task-drawer-close" type="button" aria-label="Close task form" onClick={onCancel} disabled={saving}>×</button>
       </div>
-      <ErrorMessage>{error}</ErrorMessage>
+      <ErrorMessage message={error} />
 
       {loadingTask ? (
-        <p className="project-loading" role="status">Loading task details…</p>
+        <LoadingState message="Loading task details…" as="p" className="project-loading" />
       ) : (
         <form className="project-form" onSubmit={handleSubmit}>
           <h3 className="task-form-section">Basics</h3>
           <div className="project-field">
-            <label htmlFor="task-project">Project <span className="task-required" aria-hidden="true">*</span></label>
-            <select id="task-project" name="projectId" value={form.projectId} onChange={changeField} required disabled={saving}>
+            <FormField id="task-project" label="Project" required><select id="task-project" name="projectId" value={form.projectId} onChange={changeField} required disabled={saving}>
               <option value="">Select </option>
               {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
-            </select>
+            </select></FormField>
             {!form.projectId && <small className="task-field-error">Select a project.</small>}
           </div>
           <div className="project-field">
-            <label htmlFor="task-sprint">Sprint <span className="task-required" aria-hidden="true">*</span></label>
-            <select
+            <FormField id="task-sprint" label="Sprint" required><select
               id="task-sprint"
               name="sprintId"
               value={form.sprintId}
@@ -521,43 +525,36 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
                 <option value={existingSprint.id}>{existingSprint.name}</option>
               )}
               {sprints.map((sprint) => <option key={sprint.id} value={sprint.id}>{sprint.name}</option>)}
-            </select>
+            </select></FormField>
             {form.projectId && !form.sprintId && <small className="task-field-error">Select a sprint.</small>}
           </div>
           <div className="project-field project-field-wide">
-            <label htmlFor="task-title">Title <span className="task-required" aria-hidden="true">*</span></label>
-            <input id="task-title" name="title" value={form.title} onChange={changeField} maxLength={200} required disabled={saving} />
+            <FormField id="task-title" label="Title" required><input id="task-title" name="title" value={form.title} onChange={changeField} maxLength={200} required disabled={saving} /></FormField>
             {!form.title.trim() && <small className="task-field-error"></small>}
           </div>
           <div className="project-field project-field-wide">
-            <label htmlFor="task-description">Description</label>
-            <textarea id="task-description" name="description" value={form.description} onChange={changeField} maxLength={2000} rows={3} disabled={saving} />
+            <FormField id="task-description" label="Description"><textarea id="task-description" name="description" value={form.description} onChange={changeField} maxLength={2000} rows={3} disabled={saving} /></FormField>
           </div>
           <h3 className="task-form-section">Planning</h3>
           <div className="project-field">
-            <label htmlFor="task-priority">Priority <span className="task-required" aria-hidden="true">*</span></label>
-            <select id="task-priority" name="priority" value={form.priority} onChange={changeField} required disabled={saving}>
+            <FormField id="task-priority" label="Priority" required><select id="task-priority" name="priority" value={form.priority} onChange={changeField} required disabled={saving}>
               {TASK_PRIORITIES.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
-            </select>
+            </select></FormField>
           </div>
           <div className="project-field">
-            <label htmlFor="task-status">Status <span className="task-required" aria-hidden="true">*</span></label>
-            <select id="task-status" name="status" value={form.status} onChange={changeField} required disabled={saving}>
+            <FormField id="task-status" label="Status" required><select id="task-status" name="status" value={form.status} onChange={changeField} required disabled={saving}>
               {TASK_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
-            </select>
+            </select></FormField>
           </div>
           <div className="project-field">
-            <label htmlFor="task-estimate">Estimate (hours) <span className="task-required" aria-hidden="true">*</span></label>
-            <input id="task-estimate" name="estimateHours" type="number" min="0.01" step="0.01" value={form.estimateHours} onChange={changeField} required disabled={saving} />
+            <FormField id="task-estimate" label="Estimate (hours)" required><input id="task-estimate" name="estimateHours" type="number" min="0.01" step="0.01" value={form.estimateHours} onChange={changeField} required disabled={saving} /></FormField>
             {(!form.estimateHours || Number(form.estimateHours) <= 0) && <small className="task-field-error"></small>}
           </div>
           {task && <div className="project-field">
-            <label htmlFor="task-progress">Progress (%)</label>
-            <input id="task-progress" name="progressPercentage" type="number" min="0" max="100" step="1" value={form.progressPercentage} onChange={changeField} required disabled={saving} />
+            <FormField id="task-progress" label="Progress (%)"><input id="task-progress" name="progressPercentage" type="number" min="0" max="100" step="1" value={form.progressPercentage} onChange={changeField} required disabled={saving} /></FormField>
           </div>}
           <div className="project-field">
-            <label htmlFor="task-start-date">Start date</label>
-            <input
+            <FormField id="task-start-date" label="Start date"><input
               id="task-start-date"
               name="startDate"
               type="date"
@@ -565,11 +562,10 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
               onChange={changeField}
               min={!task ? getTodayDateInputValue() : undefined}
               disabled={saving || Boolean(task && task.startDate)}
-            />
+            /></FormField>
           </div>
           <div className="project-field">
-            <label htmlFor="task-due-date">Due date <span className="task-required" aria-hidden="true">*</span></label>
-            <input
+            <FormField id="task-due-date" label="Due date" required><input
               id="task-due-date"
               name="dueDate"
               type="date"
@@ -579,13 +575,12 @@ function TaskForm({ task, projects, onCancel, onSaved }) {
               max={sprintEndDate || undefined}
               min={!task ? (form.startDate > getTodayDateInputValue() ? form.startDate : getTodayDateInputValue()) : (form.startDate || undefined)}
               disabled={saving}
-            />
+            /></FormField>
             {!form.dueDate && <small className="task-field-error"></small>}
             {form.startDate && form.dueDate && form.dueDate < form.startDate && <small className="task-field-error">Due date must be on or after the start date.</small>}
           </div>
           {form.status === 'Blocked' && <><h3 className="task-form-section">Blocker</h3><div className="project-field project-field-wide">
-            <label htmlFor="task-blocker">Blocker information</label>
-            <textarea id="task-blocker" name="blockerInformation" value={form.blockerInformation} onChange={changeField} maxLength={1000} rows={2} disabled={saving} />
+            <FormField id="task-blocker" label="Blocker information"><textarea id="task-blocker" name="blockerInformation" value={form.blockerInformation} onChange={changeField} maxLength={1000} rows={2} disabled={saving} /></FormField>
           </div></>}
           <div className="project-form-actions project-field-wide">
             <button className="button button-primary" type="submit" disabled={saving || sprintsLoading || !valid}>
@@ -618,6 +613,7 @@ function TasksPage() {
   const [editingTask, setEditingTask] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [taskToDelete, setTaskToDelete] = useState(null);
   const [taskSprintDetails, setTaskSprintDetails] = useState({});
   const [historyTask, setHistoryTask] = useState(null);
   const [riskTask, setRiskTask] = useState(null);
@@ -706,11 +702,11 @@ function TasksPage() {
       }
 
       const sprintIds = [...new Set(items.map((item) => item.sprintId).filter(Boolean))];
-      const details = await Promise.all(sprintIds.map(async (id) => {
-        return [id, await getSprint(id)];
-      }));
+      const details = await Promise.allSettled(sprintIds.map(async (id) => [id, await getSprint(id)]));
       if (!signal?.aborted) {
-        setTaskSprintDetails(Object.fromEntries(details));
+        setTaskSprintDetails(Object.fromEntries(details
+          .filter((result) => result.status === 'fulfilled')
+          .map((result) => result.value)));
       }
     } catch (requestError) {
       if (requestError.code !== 'ERR_CANCELED') {
@@ -777,15 +773,19 @@ function TasksPage() {
     await loadTasks();
   }
 
-  async function handleDelete(task) {
-    if (!window.confirm(`Delete "${task.title}"? This will remove it from the active task list.`)) {
-      return;
-    }
+  function handleDelete(task) {
+    setTaskToDelete(task);
+  }
+
+  async function confirmDelete() {
+    const task = taskToDelete;
+    if (!task) return;
     setDeletingId(task.id);
     setListError('');
     setNotice('');
     try {
       await deleteTask(task.id);
+      setTaskToDelete(null);
       setNotice('Task deleted successfully.');
       if (tasks.length === 1 && page > 1) {
         setPage(page - 1);
@@ -816,7 +816,7 @@ function TasksPage() {
       </div>
 
       {notice && <div className="project-notice" role="status">{notice}</div>}
-      <ErrorMessage>{lookupError}</ErrorMessage>
+      <ErrorMessage message={lookupError} />
 
       {canManage && formOpen && (
         <div className="task-drawer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) { setFormOpen(false); setEditingTask(null); } }}>
@@ -885,18 +885,18 @@ function TasksPage() {
       {!lookupsLoading && projects.length === 0 && !lookupError && canManage && (
         <div className="project-notice">Create a project and sprint before adding tasks.</div>
       )}
-      <ErrorMessage>{listError}</ErrorMessage>
+      <ErrorMessage message={listError} />
 
       {loading ? (
-        <div className="project-state" role="status">Loading tasks…</div>
+        <LoadingState message="Loading tasks…" />
       ) : listError ? null : tasks.length === 0 ? (
-        <div className="project-state project-empty">
-          <h2>{search || Object.values(filters).some(Boolean) ? 'No matching tasks' : 'No tasks yet'}</h2>
-          <p>{search || Object.values(filters).some(Boolean) ? 'Try changing your search or filters.' : canManage ? 'Create a task to get started.' : 'No tasks are available yet.'}</p>
-          {!search && !Object.values(filters).some(Boolean) && projects.length > 0 && canManage && !formOpen && (
+        <EmptyState
+          title={search || Object.values(filters).some(Boolean) ? 'No matching tasks' : 'No tasks yet'}
+          description={search || Object.values(filters).some(Boolean) ? 'Try changing your search or filters.' : canManage ? 'Create a task to get started.' : 'No tasks are available yet.'}
+          action={!search && !Object.values(filters).some(Boolean) && projects.length > 0 && canManage && !formOpen ? (
             <button className="button button-secondary" type="button" onClick={openCreateForm}>Create your first task</button>
-          )}
-        </div>
+          ) : null}
+        />
       ) : (
         <div className="task-table-wrap">
           <table className="task-table">
@@ -924,8 +924,8 @@ function TasksPage() {
                       <strong>{projectNames.get(sprint?.projectId) || 'Project not available'}</strong>
                       <span className="task-description-cell">{sprint?.name || `Sprint ${task.sprintId}`}</span>
                     </td>
-                    <td data-label="Priority">{task.priority}</td>
-                    <td data-label="Status">{getTaskDisplayStatus(task) === 'Overdue' ? 'Overdue' : task.status}</td>
+                    <td data-label="Priority"><PriorityBadge priority={task.priority} /></td>
+                    <td data-label="Status"><StatusBadge status={getTaskDisplayStatus(task) === 'Overdue' ? 'Overdue' : task.status} /></td>
                     <td data-label="Due date">{formatDate(task.dueDate)}</td>
                     <td data-label="Progress">{task.progressPercentage}%</td>
                     <td data-label="Actions">
@@ -972,11 +972,8 @@ function TasksPage() {
         </div>
       )}
 
-      <nav className="project-pagination" aria-label="Task pages">
-        <button className="button button-secondary" type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1 || loading}>Previous</button>
-        <span>Page {page} of {totalPages}</span>
-        <button className="button button-secondary" type="button" onClick={() => setPage((current) => current + 1)} disabled={totalPages === 0 || page >= totalPages || loading}>Next</button>
-      </nav>
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} disabled={loading} label="Task pages" />
+      {taskToDelete && <Delete title="Delete task?" className="project-confirm-dialog" backdropClassName="project-confirm-backdrop" confirmLabel="Delete task" busyLabel="Deleting…" onCancel={() => setTaskToDelete(null)} onConfirm={confirmDelete} busy={deletingId === taskToDelete.id}>Delete “{taskToDelete.title}”? This will remove it from the active task list.</Delete>}
     </section>
   );
 }

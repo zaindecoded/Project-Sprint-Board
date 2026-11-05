@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import ErrorMessage from '../components/ErrorMessage';
+import { useParams } from 'react-router-dom';
+import DetailPage from '../components/DetailPage';
+import { PriorityBadge, StatusBadge } from '../components/badges';
 import { getApiErrorMessage } from '../services/apiErrors';
 import { getTask } from '../services/taskApi';
 
@@ -25,24 +26,19 @@ function TaskDetailPage() {
     return () => { active = false; };
   }, [id]);
 
-  return (
-    <section className="task-detail-page">
-      <Link to="/dashboard" className="task-detail-back">← Dashboard</Link>
-      {loading ? <p role="status">Loading task…</p> : error ? <ErrorMessage>{error}</ErrorMessage> : task && (
-        <article className="task-detail-card">
-          <div className="task-detail-heading"><div><p className="eyebrow">Task details</p><h1>{task.title}</h1></div><span className={`dashboard-status-pill dashboard-status-${String(task.status).toLowerCase()}`}>{({ InProgress: 'In Progress', Todo: 'To Do', Done: 'Completed', InReview: 'In Review' })[task.status] || task.status}</span></div>
-          <p className="task-detail-description">{task.description || 'No description provided.'}</p>
-          <dl className="task-detail-fields">
-            <div><dt>Priority</dt><dd>{task.priority}</dd></div>
-            <div><dt>Due date</dt><dd>{formatDate(task.dueDate)}</dd></div>
-            <div><dt>Progress</dt><dd>{task.progressPercentage}%</dd></div>
-            <div><dt>Estimate</dt><dd>{task.estimateHours} hours</dd></div>
-            {task.blockerInformation && <div><dt>Blocker</dt><dd>{task.blockerInformation}</dd></div>}
-          </dl>
-        </article>
-      )}
-    </section>
-  );
+  return <DetailPage backTo="/dashboard" backLabel="Dashboard" loading={loading} loadingMessage="Loading task…" error={error}>
+    {task && <article className="task-detail-card">
+      <div className="task-detail-heading"><div><p className="eyebrow">Task details</p><h1>{task.title}</h1></div><StatusBadge status={task.status} className={`dashboard-status-pill dashboard-status-${String(task.status).toLowerCase()}`} /></div>
+      <p className="task-detail-description">{task.description || 'No description provided.'}</p>
+      <dl className="task-detail-fields">
+        <div><dt>Priority</dt><dd><PriorityBadge priority={task.priority} /></dd></div>
+        <div><dt>Due date</dt><dd>{formatDate(task.dueDate)}</dd></div>
+        <div><dt>Progress</dt><dd>{task.progressPercentage}%</dd></div>
+        <div><dt>Estimate</dt><dd>{task.estimateHours} hours</dd></div>
+        {task.blockerInformation && <div><dt>Blocker</dt><dd>{task.blockerInformation}</dd></div>}
+      </dl>
+    </article>}
+  </DetailPage>;
 }
 
 export default TaskDetailPage;

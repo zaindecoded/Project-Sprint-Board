@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import ErrorMessage from '../../components/ErrorMessage';
+import DetailPage from '../../components/DetailPage';
+import { StatusBadge } from '../../components/badges';
 import { getApiErrorMessage } from '../../services/apiErrors';
 import { getSprint } from '../../services/sprintApi';
 import { getProject } from '../../services/projectApi';
@@ -35,5 +36,15 @@ export default function SprintDetailPage() {
     return () => { active = false; };
   }, [id]);
 
-  return <section className="task-detail-page"><Link to="/sprints" className="task-detail-back">← Sprints</Link>{loading ? <p role="status">Loading sprint…</p> : error ? <ErrorMessage>{error}</ErrorMessage> : sprint && <article className="task-detail-card"><div className="task-detail-heading"><div><p className="eyebrow">Sprint</p><h1>{sprint.name}</h1></div><span className={`sprint-status-badge sprint-status-${String(sprint.status).toLowerCase()}`}>{sprint.status}</span></div><Link className="sprint-project-name" to={`/projects/${sprint.projectId}`}>{projectName || 'Project unavailable'}</Link><p className="task-detail-description">{sprint.goal || 'No goal provided.'}</p><dl className="task-detail-fields"><div><dt>Start date</dt><dd>{formatDate(sprint.startDate)}</dd></div><div><dt>End date</dt><dd>{formatDate(sprint.endDate)}</dd></div></dl></article>}</section>;
+  return <DetailPage backTo="/sprints" backLabel="Sprints" loading={loading} loadingMessage="Loading sprint…" error={error}>
+    {sprint && <article className="task-detail-card">
+      <div className="task-detail-heading"><div><p className="eyebrow">Sprint</p><h1>{sprint.name}</h1></div><StatusBadge status={sprint.status} className={`sprint-status-badge sprint-status-${String(sprint.status).toLowerCase()}`} /></div>
+      <Link className="sprint-project-name" to={`/projects/${sprint.projectId}`}>{projectName || 'Project unavailable'}</Link>
+      <p className="task-detail-description">{sprint.goal || 'No goal provided.'}</p>
+      <dl className="task-detail-fields">
+        <div><dt>Start date</dt><dd>{formatDate(sprint.startDate)}</dd></div>
+        <div><dt>End date</dt><dd>{formatDate(sprint.endDate)}</dd></div>
+      </dl>
+    </article>}
+  </DetailPage>;
 }
